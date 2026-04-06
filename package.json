@@ -1,8 +1,11 @@
 {
-  "name": "步步搬家-bubu-moving",
+  "name": "bubu-moving",
   "private": true,
   "version": "0.0.0",
   "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "dev": "vite",
     "build": "vite build",
