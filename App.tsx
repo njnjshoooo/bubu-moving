@@ -1,5 +1,9 @@
-
 import React, { useState, useEffect } from 'react';
+import { HashRouter, Routes, Route, Outlet } from 'react-router-dom';
+import { AuthProvider } from './contexts/AuthContext';
+import { AdminRoute, ProtectedRoute } from './components/ProtectedRoute';
+
+// Public pages
 import Navbar from './components/Navbar';
 import Hero from './components/Hero';
 import Features from './components/Features';
@@ -13,6 +17,26 @@ import ServicesPage from './components/ServicesPage';
 import SuppliesPage from './components/SuppliesPage';
 import About from './components/About';
 import CaseStudyPage from './components/CaseStudyPage';
+import BookingCalendar from './components/BookingCalendar';
+
+// Auth pages
+import LoginPage from './pages/LoginPage';
+import RegisterPage from './pages/RegisterPage';
+
+// Admin pages
+import AdminLayout from './pages/admin/AdminLayout';
+import AdminDashboard from './pages/admin/AdminDashboard';
+import AdminCalendar from './pages/admin/AdminCalendar';
+import AdminBookings from './pages/admin/AdminBookings';
+import AdminQuoteList from './pages/admin/AdminQuoteList';
+import QuoteBuilder from './pages/admin/QuoteBuilder';
+import QuoteView from './pages/admin/QuoteView';
+
+// Member pages
+import MemberLayout from './pages/member/MemberLayout';
+import MemberDashboard from './pages/member/MemberDashboard';
+import MemberBookings from './pages/member/MemberBookings';
+import MemberProfile from './pages/member/MemberProfile';
 
 export interface EstimationData {
   area: number;
@@ -31,30 +55,20 @@ export interface EstimationData {
 
 export type PageView = 'home' | 'services' | 'supplies' | 'cases';
 
-function App() {
+// ─── Public Layout ─────────────────────────────────────────────────────────────
+function PublicLayout() {
   const [currentPage, setCurrentPage] = useState<PageView>('home');
   const [estimationData, setEstimationData] = useState<EstimationData | null>(null);
   const [contactNote, setContactNote] = useState<string>('');
 
-  // 處理 hash change 以支援瀏覽器上一頁/下一頁的基本行為 (選用)
   useEffect(() => {
     const handleHashChange = () => {
       const hash = window.location.hash;
-      if (hash === '#services-page') {
-        setCurrentPage('services');
-      } else if (hash === '#supplies-page') {
-        setCurrentPage('supplies');
-      } else if (hash === '#cases-page') {
-        setCurrentPage('cases');
-      } else {
-        // 如果是 #contact, #hero 等等，通常是首頁的錨點
-        setCurrentPage('home');
-      }
+      if (hash === '#/') return; // React Router hash, ignore
+      if (hash.includes('services-page')) setCurrentPage('services');
+      else if (hash.includes('supplies-page')) setCurrentPage('supplies');
+      else if (hash.includes('cases-page')) setCurrentPage('cases');
     };
-    
-    // Init check
-    handleHashChange();
-
     window.addEventListener('hashchange', handleHashChange);
     return () => window.removeEventListener('hashchange', handleHashChange);
   }, []);
@@ -62,34 +76,19 @@ function App() {
   const navigateTo = (page: PageView) => {
     setCurrentPage(page);
     window.scrollTo(0, 0);
-    if (page === 'services') {
-      if (window.location.hash !== '#services-value-added') {
-          window.location.hash = 'services-page';
-      }
-    } else if (page === 'supplies') {
-      window.location.hash = 'supplies-page';
-    } else if (page === 'cases') {
-      window.location.hash = 'cases-page';
-    } else {
-      // window.location.hash = ''; 
-    }
   };
 
   const handleOrderSupplies = (orderSummary: string) => {
     setContactNote(orderSummary);
     navigateTo('home');
     setTimeout(() => {
-      const contactSection = document.getElementById('contact');
-      if (contactSection) {
-        contactSection.scrollIntoView({ behavior: 'smooth' });
-      }
+      document.getElementById('contact')?.scrollIntoView({ behavior: 'smooth' });
     }, 100);
   };
 
   return (
     <div className="min-h-screen bg-white">
       <Navbar currentPage={currentPage} onNavigate={navigateTo} />
-      
       <main>
         {currentPage === 'home' ? (
           <>
@@ -98,6 +97,7 @@ function App() {
             <About />
             <Services />
             <Estimation onEstimate={setEstimationData} />
+            <BookingCalendar />
             <Process />
             <Testimonials />
             <ContactForm prefilledData={estimationData} initialNote={contactNote} />
@@ -110,9 +110,43 @@ function App() {
           <SuppliesPage onOrder={handleOrderSupplies} />
         )}
       </main>
-      
       <Footer />
     </div>
+  );
+}
+
+// ─── App with Router ────────────────────────────────────────────────────────────
+function App() {
+  return (
+    <HashRouter>
+      <AuthProvider>
+        <Routes>
+          {/* Public */}
+          <Route path="/" element={<PublicLayout />} />
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/register" element={<RegisterPage />} />
+
+          {/* Admin */}
+          <Route path="/admin" element={<AdminRoute><AdminLayout /></AdminRoute>}>
+            <Route index element={<AdminDashboard />} />
+            <Route path="calendar" element={<AdminCalendar />} />
+            <Route path="bookings" element={<AdminBookings />} />
+            <Route path="quotes" element={<AdminQuoteList />} />
+            <Route path="quotes/new" element={<QuoteBuilder />} />
+            <Route path="quotes/new/:bookingId" element={<QuoteBuilder />} />
+            <Route path="quotes/:quoteId" element={<QuoteBuilder />} />
+            <Route path="quotes/:quoteId/view" element={<QuoteView />} />
+          </Route>
+
+          {/* Member */}
+          <Route path="/member" element={<ProtectedRoute><MemberLayout /></ProtectedRoute>}>
+            <Route index element={<MemberDashboard />} />
+            <Route path="bookings" element={<MemberBookings />} />
+            <Route path="profile" element={<MemberProfile />} />
+          </Route>
+        </Routes>
+      </AuthProvider>
+    </HashRouter>
   );
 }
 

@@ -20,3 +20,30 @@ html {
 body {
   font-family: "Microsoft JhengHei", "Heiti TC", sans-serif;
 }
+
+/* ─── Print Styles ─────────────────────────────────────────── */
+@media print {
+  .no-print,
+  nav,
+  header,
+  aside,
+  footer {
+    display: none !important;
+  }
+  body {
+    background: white !important;
+    font-size: 12px;
+  }
+  .print-area {
+    border: none !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    border-radius: 0 !important;
+  }
+  @page {
+    size: A4;
+    margin: 15mm 15mm 15mm 15mm;
+  }
+}

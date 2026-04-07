@@ -1,7 +1,9 @@
 
 import React, { useState, useEffect } from 'react';
-import { Menu, X, Phone, Truck, Calculator, Package } from 'lucide-react';
+import { Menu, X, Phone, Truck, Calculator, Package, LogIn, User } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { PageView } from '../App';
+import { useAuth } from '../contexts/AuthContext';
 
 interface NavbarProps {
   currentPage: PageView;
@@ -11,6 +13,8 @@ interface NavbarProps {
 const Navbar: React.FC<NavbarProps> = ({ currentPage, onNavigate }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
+  const { user, isAdmin } = useAuth();
+  const navigate = useNavigate();
 
   useEffect(() => {
     const handleScroll = () => {
@@ -118,13 +122,30 @@ const Navbar: React.FC<NavbarProps> = ({ currentPage, onNavigate }) => {
                 {link.name}
               </a>
             ))}
-            <a 
-              href="tel:0912345678" 
+            <a
+              href="tel:0912345678"
               className="flex items-center gap-2 bg-brand-600 hover:bg-brand-700 text-white px-4 py-2 rounded-full font-bold transition-all transform hover:scale-105 shadow-md ml-2"
             >
               <Phone size={18} />
               <span>0912-345-678</span>
             </a>
+            {user ? (
+              <button
+                onClick={() => navigate(isAdmin ? '/admin' : '/member')}
+                className={`flex items-center gap-1.5 font-medium text-base transition-colors ${textColor}`}
+              >
+                <User size={16} />
+                {isAdmin ? '後台管理' : '我的帳號'}
+              </button>
+            ) : (
+              <button
+                onClick={() => navigate('/login')}
+                className={`flex items-center gap-1.5 font-medium text-base transition-colors ${textColor}`}
+              >
+                <LogIn size={16} />
+                登入
+              </button>
+            )}
           </div>
 
            {/* Mobile menu button */}
