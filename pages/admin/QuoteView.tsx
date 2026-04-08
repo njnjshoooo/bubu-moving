@@ -1,14 +1,33 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { Printer, ArrowLeft, Edit } from 'lucide-react';
-import { supabase, Quote, NoteTemplate, T } from '../../lib/supabase';
+import { supabase, Quote, NoteTemplate, StaffScheduleItem, QuoteScheduleItem, T } from '../../lib/supabase';
 
 const CATEGORIES = ['搬家車趟費', '打包計時人員', '包材費'];
+
+const CAT_COLORS: Record<string, string> = {
+  '搬家': '#3B82F6',
+  '打包': '#10B981',
+  '清運': '#F59E0B',
+  '其他': '#8B5CF6',
+};
+
+const toMin = (t: string) => {
+  const [h, m] = t.slice(0, 5).split(':').map(Number);
+  return h * 60 + m;
+};
+
+const fmtTime = (t: string) => t.slice(0, 5);
+
+const calcHours = (start: string, end: string) =>
+  Math.max(0, (toMin(end) - toMin(start)) / 60);
 
 export default function QuoteView() {
   const { quoteId } = useParams();
   const [quote, setQuote] = useState<Quote | null>(null);
   const [checkedNotes, setCheckedNotes] = useState<NoteTemplate[]>([]);
+  const [staffItems, setStaffItems] = useState<StaffScheduleItem[]>([]);
+  const [scheduleItems, setScheduleItems] = useState<QuoteScheduleItem[]>([]);
   const [loading, setLoading] = useState(true);
   const printRef = useRef<HTMLDivElement>(null);
 
@@ -26,6 +45,15 @@ export default function QuoteView() {
           .sort((a: any, b: any) => a.sort_order - b.sort_order);
         setCheckedNotes(notes);
       }
+
+      const { data: staffData } = await supabase.from(T.staffSchedule)
+        .select('*').eq('quote_id', quoteId!).order('sort_order');
+      if (staffData) setStaffItems(staffData as StaffScheduleItem[]);
+
+      const { data: schedData } = await supabase.from(T.quoteSchedule)
+        .select('*').eq('quote_id', quoteId!).order('sort_order');
+      if (schedData) setScheduleItems(schedData as QuoteScheduleItem[]);
+
       setLoading(false);
     };
     load();
@@ -44,9 +72,23 @@ export default function QuoteView() {
   const catItems = (cat: string) => (quote.quote_items ?? []).filter(i => i.category === cat);
   const catTotal = (cat: string) => catItems(cat).reduce((s, i) => s + i.unit_price * i.quantity, 0);
 
+  // Staff subtotal
+  const staffTotal = staffItems.reduce((sum, s) => sum + calcHours(s.start_time, s.end_time) * s.person_count * s.unit_price, 0);
+
+  // Group schedule items by date for Gantt
+  const schedByDate = scheduleItems.reduce((acc, s) => {
+    acc[s.work_date] = acc[s.work_date] ?? [];
+    acc[s.work_date].push(s);
+    return acc;
+  }, {} as Record<string, QuoteScheduleItem[]>);
+  const scheduleDates = Object.keys(schedByDate).sort();
+
+  const hasSchedule = scheduleItems.length > 0;
+  const hasStaff = staffItems.length > 0;
+
   return (
     <div>
-      {/* Action Bar - hidden when printing */}
+      {/* Action Bar */}
       <div className="no-print flex items-center justify-between mb-6 flex-wrap gap-3">
         <div className="flex items-center gap-3">
           <Link to={`/admin/quotes/${quoteId}`} className="p-2 hover:bg-gray-100 rounded-xl transition-colors">
@@ -71,6 +113,7 @@ export default function QuoteView() {
 
       {/* Quote Document */}
       <div ref={printRef} className="print-area bg-white rounded-2xl border border-gray-100 p-8 max-w-3xl mx-auto print:max-w-none print:border-none print:p-8 print:shadow-none">
+
         {/* Header */}
         <div className="flex items-start justify-between mb-8 border-b-2 border-brand-500 pb-6">
           <div>
@@ -126,15 +169,13 @@ export default function QuoteView() {
           </div>
         </div>
 
-        {/* Items by Category */}
-        {CATEGORIES.map(cat => {
+        {/* Items by Category（排除打包計時人員，以工時明細取代）*/}
+        {CATEGORIES.filter(cat => cat !== '打包計時人員' || catItems(cat).length > 0).map(cat => {
           const cItems = catItems(cat);
           if (cItems.length === 0) return null;
           return (
             <div key={cat} className="mb-6">
-              <h3 className="font-semibold text-gray-800 bg-brand-50 text-brand-800 px-4 py-2 rounded-t-xl border border-brand-100 text-sm">
-                {cat}
-              </h3>
+              <h3 className="font-semibold text-gray-800 bg-brand-50 text-brand-800 px-4 py-2 rounded-t-xl border border-brand-100 text-sm">{cat}</h3>
               <table className="w-full text-sm border border-t-0 border-gray-100 rounded-b-xl overflow-hidden">
                 <thead>
                   <tr className="bg-gray-50">
@@ -163,14 +204,152 @@ export default function QuoteView() {
           );
         })}
 
+        {/* ── Staff Schedule Detail ── */}
+        {hasStaff && (
+          <div className="mb-6">
+            <h3 className="font-semibold text-gray-800 bg-green-50 text-green-800 px-4 py-2 rounded-t-xl border border-green-100 text-sm">人員工時明細</h3>
+            <table className="w-full text-sm border border-t-0 border-gray-100 rounded-b-xl overflow-hidden">
+              <thead>
+                <tr className="bg-gray-50">
+                  <th className="text-left px-4 py-2 text-xs text-gray-500 font-medium">日期</th>
+                  <th className="text-left px-4 py-2 text-xs text-gray-500 font-medium">時段</th>
+                  <th className="text-center px-4 py-2 text-xs text-gray-500 font-medium">人數</th>
+                  <th className="text-center px-4 py-2 text-xs text-gray-500 font-medium">工時</th>
+                  <th className="text-right px-4 py-2 text-xs text-gray-500 font-medium">時薪/人</th>
+                  <th className="text-right px-4 py-2 text-xs text-gray-500 font-medium">小計</th>
+                </tr>
+              </thead>
+              <tbody>
+                {staffItems.map((s, i) => {
+                  const hours = calcHours(s.start_time, s.end_time);
+                  const sub = Math.round(hours * s.person_count * s.unit_price);
+                  return (
+                    <tr key={s.id} className={i % 2 === 0 ? '' : 'bg-gray-50/50'}>
+                      <td className="px-4 py-2.5 text-gray-700">{s.work_date}</td>
+                      <td className="px-4 py-2.5 text-gray-600">{fmtTime(s.start_time)} – {fmtTime(s.end_time)}</td>
+                      <td className="px-4 py-2.5 text-center text-gray-600">{s.person_count} 人</td>
+                      <td className="px-4 py-2.5 text-center text-gray-600">{hours.toFixed(1)} h</td>
+                      <td className="px-4 py-2.5 text-right text-gray-600">NT${s.unit_price.toLocaleString()}</td>
+                      <td className="px-4 py-2.5 text-right font-medium text-gray-800">NT${sub.toLocaleString()}</td>
+                    </tr>
+                  );
+                })}
+                <tr className="bg-green-50/50">
+                  <td colSpan={5} className="px-4 py-2 text-right text-sm text-gray-500 font-medium">人員費小計</td>
+                  <td className="px-4 py-2 text-right font-bold text-green-700">NT${Math.round(staffTotal).toLocaleString()}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        )}
+
         {/* Total */}
         <div className="mt-4 bg-brand-500 text-white rounded-xl p-5 flex items-center justify-between">
           <div>
             <p className="text-brand-100 text-sm">合計金額（含稅）</p>
             <p className="text-xs text-brand-200 mt-0.5">以上金額均為含稅報價</p>
           </div>
-          <p className="text-3xl font-bold">NT${quote.total.toLocaleString()}</p>
+          <p className="text-3xl font-bold">NT${(quote.total + Math.round(staffTotal)).toLocaleString()}</p>
         </div>
+
+        {/* ── Schedule Table ── */}
+        {hasSchedule && (
+          <div className="mt-8">
+            <h3 className="font-semibold text-gray-800 mb-3 text-sm border-t border-gray-100 pt-6">作業排程表</h3>
+            <table className="w-full text-sm border border-gray-100 rounded-xl overflow-hidden mb-6">
+              <thead>
+                <tr className="bg-gray-50">
+                  <th className="text-left px-4 py-2 text-xs text-gray-500 font-medium">日期</th>
+                  <th className="text-left px-4 py-2 text-xs text-gray-500 font-medium">開始</th>
+                  <th className="text-left px-4 py-2 text-xs text-gray-500 font-medium">結束</th>
+                  <th className="text-left px-4 py-2 text-xs text-gray-500 font-medium">作業項目</th>
+                  <th className="text-left px-4 py-2 text-xs text-gray-500 font-medium">分類</th>
+                </tr>
+              </thead>
+              <tbody>
+                {scheduleItems.map((s, i) => (
+                  <tr key={s.id} className={i % 2 === 0 ? '' : 'bg-gray-50/50'}>
+                    <td className="px-4 py-2.5 text-gray-700">{s.work_date}</td>
+                    <td className="px-4 py-2.5 text-gray-600">{fmtTime(s.start_time)}</td>
+                    <td className="px-4 py-2.5 text-gray-600">{fmtTime(s.end_time)}</td>
+                    <td className="px-4 py-2.5 text-gray-800 font-medium">{s.label}</td>
+                    <td className="px-4 py-2.5">
+                      <span className="text-xs px-2 py-0.5 rounded-full font-medium text-white"
+                        style={{ backgroundColor: CAT_COLORS[s.category] ?? '#6B7280' }}>
+                        {s.category}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+
+            {/* ── CSS Gantt Chart ── */}
+            <h3 className="font-semibold text-gray-800 mb-3 text-sm">時程甘特圖</h3>
+            <div className="space-y-4">
+              {scheduleDates.map(date => {
+                const dayItems = schedByDate[date];
+                const mins = dayItems.map(s => toMin(s.start_time));
+                const maxMins = dayItems.map(s => toMin(s.end_time));
+                const dayStart = Math.min(...mins);
+                const dayEnd = Math.max(...maxMins);
+                const span = dayEnd - dayStart || 60;
+
+                // Time labels (every hour)
+                const hourLabels: number[] = [];
+                for (let m = Math.floor(dayStart / 60) * 60; m <= dayEnd; m += 60) hourLabels.push(m);
+
+                return (
+                  <div key={date}>
+                    <p className="text-xs font-semibold text-gray-600 mb-1">{date}</p>
+                    {/* Hour axis */}
+                    <div className="relative mb-1" style={{ height: '16px' }}>
+                      {hourLabels.map(m => {
+                        const pct = ((m - dayStart) / span) * 100;
+                        if (pct < 0 || pct > 100) return null;
+                        return (
+                          <span key={m} className="absolute text-xs text-gray-400 -translate-x-1/2" style={{ left: `${pct}%` }}>
+                            {String(Math.floor(m / 60)).padStart(2, '0')}:{String(m % 60).padStart(2, '0')}
+                          </span>
+                        );
+                      })}
+                    </div>
+                    {/* Gantt rows */}
+                    <div className="relative bg-gray-100 rounded-lg overflow-hidden" style={{ height: `${dayItems.length * 32 + 8}px` }}>
+                      {dayItems.map((s, i) => {
+                        const left = ((toMin(s.start_time) - dayStart) / span) * 100;
+                        const width = ((toMin(s.end_time) - toMin(s.start_time)) / span) * 100;
+                        const color = CAT_COLORS[s.category] ?? '#6B7280';
+                        return (
+                          <div key={s.id}
+                            className="absolute flex items-center px-2 rounded text-white text-xs font-medium overflow-hidden whitespace-nowrap"
+                            style={{
+                              left: `${left}%`, width: `${width}%`,
+                              top: `${i * 32 + 4}px`, height: '26px',
+                              backgroundColor: color,
+                            }}
+                            title={`${fmtTime(s.start_time)} – ${fmtTime(s.end_time)} ${s.label}`}
+                          >
+                            {s.label}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            {/* Legend */}
+            <div className="flex flex-wrap gap-3 mt-3">
+              {Object.entries(CAT_COLORS).map(([cat, color]) => (
+                <div key={cat} className="flex items-center gap-1.5 text-xs text-gray-600">
+                  <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: color }} />
+                  {cat}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Notes */}
         {checkedNotes.length > 0 && (

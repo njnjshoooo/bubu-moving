@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { HashRouter, Routes, Route, Outlet } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
-import { AdminRoute, ProtectedRoute } from './components/ProtectedRoute';
+import { AdminRoute, ProtectedRoute, ConsultantRoute } from './components/ProtectedRoute';
 
 // Public pages
 import Navbar from './components/Navbar';
@@ -37,6 +37,14 @@ import MemberLayout from './pages/member/MemberLayout';
 import MemberDashboard from './pages/member/MemberDashboard';
 import MemberBookings from './pages/member/MemberBookings';
 import MemberProfile from './pages/member/MemberProfile';
+
+// Consultant pages
+import ConsultantLayout from './pages/consultant/ConsultantLayout';
+import ConsultantSchedule from './pages/consultant/ConsultantSchedule';
+import ConsultantProfile from './pages/consultant/ConsultantProfile';
+
+// Admin extra pages
+import AdminConsultants from './pages/admin/AdminConsultants';
 
 export interface EstimationData {
   area: number;
@@ -136,6 +144,13 @@ function App() {
             <Route path="quotes/new/:bookingId" element={<QuoteBuilder />} />
             <Route path="quotes/:quoteId" element={<QuoteBuilder />} />
             <Route path="quotes/:quoteId/view" element={<QuoteView />} />
+            <Route path="consultants" element={<AdminConsultants />} />
+          </Route>
+
+          {/* Consultant */}
+          <Route path="/consultant" element={<ConsultantRoute><ConsultantLayout /></ConsultantRoute>}>
+            <Route index element={<ConsultantSchedule />} />
+            <Route path="profile" element={<ConsultantProfile />} />
           </Route>
 
           {/* Member */}

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
-import { Plus, Trash2, ChevronDown, ChevronUp, Save, Eye, ArrowLeft } from 'lucide-react';
-import { supabase, NoteTemplate, Booking, T } from '../../lib/supabase';
+import { Plus, Trash2, ChevronDown, ChevronUp, Save, Eye, ArrowLeft, Send, Users, CalendarDays } from 'lucide-react';
+import { supabase, NoteTemplate, T } from '../../lib/supabase';
 
 // ─── Product Catalog ──────────────────────────────────────────────────────────
 const PRODUCT_CATALOG: Record<string, { name: string; price: number }[]> = {
@@ -36,7 +36,9 @@ const PRODUCT_CATALOG: Record<string, { name: string; price: number }[]> = {
 };
 
 const CATEGORIES = Object.keys(PRODUCT_CATALOG) as Array<keyof typeof PRODUCT_CATALOG>;
+const SCHEDULE_CATEGORIES = ['搬家', '打包', '清運', '其他'];
 
+// ─── Types ────────────────────────────────────────────────────────────────────
 interface LineItem {
   id?: string;
   category: string;
@@ -44,6 +46,24 @@ interface LineItem {
   unit_price: number;
   quantity: number;
   sort_order: number;
+}
+
+interface StaffItemForm {
+  id?: string;
+  work_date: string;
+  start_time: string;
+  end_time: string;
+  person_count: number;
+  unit_price: number;
+}
+
+interface ScheduleItemForm {
+  id?: string;
+  work_date: string;
+  start_time: string;
+  end_time: string;
+  label: string;
+  category: string;
 }
 
 interface QuoteForm {
@@ -57,6 +77,19 @@ interface QuoteForm {
   internal_notes: string;
 }
 
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+const calcHours = (start: string, end: string): number => {
+  const [sh, sm] = start.split(':').map(Number);
+  const [eh, em] = end.split(':').map(Number);
+  return Math.max(0, (eh * 60 + em - sh * 60 - sm) / 60);
+};
+
+const staffSubtotal = (items: StaffItemForm[]) =>
+  items.reduce((sum, i) => sum + calcHours(i.start_time, i.end_time) * i.person_count * i.unit_price, 0);
+
+const TODAY = new Date().toISOString().split('T')[0];
+
+// ─── Component ───────────────────────────────────────────────────────────────
 export default function QuoteBuilder() {
   const { bookingId, quoteId } = useParams();
   const navigate = useNavigate();
@@ -66,67 +99,85 @@ export default function QuoteBuilder() {
     company_name: '', address_from: '', address_to: '', internal_notes: '',
   });
   const [items, setItems] = useState<LineItem[]>([]);
+  const [staffItems, setStaffItems] = useState<StaffItemForm[]>([]);
+  const [scheduleItems, setScheduleItems] = useState<ScheduleItemForm[]>([]);
   const [notes, setNotes] = useState<NoteTemplate[]>([]);
   const [checkedNotes, setCheckedNotes] = useState<Set<string>>(new Set());
   const [expandedCats, setExpandedCats] = useState<Record<string, boolean>>({ '搬家車趟費': true });
   const [saving, setSaving] = useState(false);
+  const [sending, setSending] = useState(false);
   const [quoteNumber, setQuoteNumber] = useState('');
   const [existingQuoteId, setExistingQuoteId] = useState<string | null>(null);
+  const [quoteStatus, setQuoteStatus] = useState<string>('草稿');
+  const [saveMsg, setSaveMsg] = useState('');
 
-  // Load note templates
   useEffect(() => {
     supabase.from(T.noteTemplates).select('*').eq('is_active', true).order('sort_order')
       .then(({ data }) => setNotes(data ?? []));
   }, []);
 
-  // Load booking if coming from a booking
   useEffect(() => {
     if (bookingId) {
       supabase.from(T.bookings).select('*').eq('id', bookingId).single()
         .then(({ data }) => {
-          if (data) {
-            setForm(f => ({
-              ...f,
-              customer_name: data.customer_name,
-              phone: data.phone,
-              email: data.email ?? '',
-              address_from: data.address_from ?? '',
-            }));
-          }
+          if (data) setForm(f => ({
+            ...f,
+            customer_name: data.customer_name,
+            phone: data.phone,
+            email: data.email ?? '',
+            address_from: data.address_from ?? '',
+          }));
         });
     }
   }, [bookingId]);
 
-  // Load existing quote if editing
   useEffect(() => {
     if (!quoteId) {
-      // Generate new quote number
       const now = new Date();
-      const num = `QUO-${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}-${String(now.getHours()).padStart(2,'0')}${String(now.getMinutes()).padStart(2,'0')}${String(now.getSeconds()).padStart(2,'0')}`;
-      setQuoteNumber(num);
+      setQuoteNumber(`QUO-${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}-${String(now.getHours()).padStart(2,'0')}${String(now.getMinutes()).padStart(2,'0')}${String(now.getSeconds()).padStart(2,'0')}`);
       return;
     }
-    supabase.from(T.quotes).select(`*, quote_items:${T.quoteItems}(*), quote_checked_notes:${T.checkedNotes}(note_id)`)
-      .eq('id', quoteId).single()
-      .then(({ data }) => {
-        if (!data) return;
-        setExistingQuoteId(data.id);
-        setQuoteNumber(data.quote_number);
-        setForm({
-          customer_name: data.customer_name, phone: data.phone,
-          email: data.email ?? '', tax_id: data.tax_id ?? '',
-          company_name: data.company_name ?? '',
-          address_from: data.address_from ?? '', address_to: data.address_to ?? '',
-          internal_notes: data.internal_notes ?? '',
-        });
-        setItems((data.quote_items ?? []).map((item: any) => ({
-          id: item.id, category: item.category, name: item.name,
-          unit_price: item.unit_price, quantity: item.quantity, sort_order: item.sort_order,
-        })));
-        setCheckedNotes(new Set((data.quote_checked_notes ?? []).map((n: any) => n.note_id)));
+    const load = async () => {
+      const { data } = await supabase.from(T.quotes)
+        .select(`*, quote_items:${T.quoteItems}(*), quote_checked_notes:${T.checkedNotes}(note_id)`)
+        .eq('id', quoteId).single();
+      if (!data) return;
+      setExistingQuoteId(data.id);
+      setQuoteNumber(data.quote_number);
+      setQuoteStatus(data.status);
+      setForm({
+        customer_name: data.customer_name, phone: data.phone,
+        email: data.email ?? '', tax_id: data.tax_id ?? '',
+        company_name: data.company_name ?? '',
+        address_from: data.address_from ?? '', address_to: data.address_to ?? '',
+        internal_notes: data.internal_notes ?? '',
       });
+      setItems((data.quote_items ?? []).map((item: any) => ({
+        id: item.id, category: item.category, name: item.name,
+        unit_price: item.unit_price, quantity: item.quantity, sort_order: item.sort_order,
+      })));
+      setCheckedNotes(new Set((data.quote_checked_notes ?? []).map((n: any) => n.note_id)));
+
+      // Load staff schedule items
+      const { data: staffData } = await supabase.from(T.staffSchedule)
+        .select('*').eq('quote_id', quoteId).order('sort_order');
+      if (staffData) setStaffItems(staffData.map((s: any) => ({
+        id: s.id, work_date: s.work_date, start_time: s.start_time.slice(0,5),
+        end_time: s.end_time.slice(0,5), person_count: s.person_count, unit_price: s.unit_price,
+      })));
+
+      // Load quote schedule items
+      const { data: schedData } = await supabase.from(T.quoteSchedule)
+        .select('*').eq('quote_id', quoteId).order('sort_order');
+      if (schedData) setScheduleItems(schedData.map((s: any) => ({
+        id: s.id, work_date: s.work_date, start_time: s.start_time.slice(0,5),
+        end_time: s.end_time.slice(0,5), label: s.label, category: s.category,
+      })));
+    };
+    load();
   }, [quoteId]);
 
+  // ── Line Items ───────────────────────────────────────────────────────────────
   const addItem = (category: string, productName: string, price: number) => {
     const existing = items.findIndex(i => i.category === category && i.name === productName);
     if (existing >= 0) {
@@ -135,76 +186,105 @@ export default function QuoteBuilder() {
       setItems(prev => [...prev, { category, name: productName, unit_price: price, quantity: 1, sort_order: prev.length }]);
     }
   };
-
-  const updateItem = (idx: number, field: 'quantity' | 'unit_price' | 'name', value: number | string) => {
+  const updateItem = (idx: number, field: 'quantity' | 'unit_price' | 'name', value: number | string) =>
     setItems(prev => prev.map((item, i) => i === idx ? { ...item, [field]: value } : item));
-  };
+  const removeItem = (idx: number) => setItems(prev => prev.filter((_, i) => i !== idx));
+  const toggleNote = (id: string) => setCheckedNotes(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
 
-  const removeItem = (idx: number) => {
-    setItems(prev => prev.filter((_, i) => i !== idx));
-  };
+  // ── Staff Items ──────────────────────────────────────────────────────────────
+  const addStaffItem = () => setStaffItems(prev => [...prev, {
+    work_date: TODAY, start_time: '09:00', end_time: '17:00', person_count: 2, unit_price: 600,
+  }]);
+  const updateStaffItem = (idx: number, field: keyof StaffItemForm, value: string | number) =>
+    setStaffItems(prev => prev.map((item, i) => i === idx ? { ...item, [field]: value } : item));
+  const removeStaffItem = (idx: number) => setStaffItems(prev => prev.filter((_, i) => i !== idx));
 
-  const toggleNote = (id: string) => {
-    setCheckedNotes(prev => {
-      const next = new Set(prev);
-      next.has(id) ? next.delete(id) : next.add(id);
-      return next;
-    });
-  };
+  // ── Schedule Items ───────────────────────────────────────────────────────────
+  const addScheduleItem = () => setScheduleItems(prev => [...prev, {
+    work_date: TODAY, start_time: '09:00', end_time: '10:00', label: '', category: '搬家',
+  }]);
+  const updateScheduleItem = (idx: number, field: keyof ScheduleItemForm, value: string) =>
+    setScheduleItems(prev => prev.map((item, i) => i === idx ? { ...item, [field]: value } : item));
+  const removeScheduleItem = (idx: number) => setScheduleItems(prev => prev.filter((_, i) => i !== idx));
 
-  const subtotal = items.reduce((sum, i) => sum + i.unit_price * i.quantity, 0);
+  // ── Subtotals ─────────────────────────────────────────────────────────────────
+  const lineItemSubtotal = items.reduce((sum, i) => sum + i.unit_price * i.quantity, 0);
+  const staffTotal = staffSubtotal(staffItems);
+  const subtotal = lineItemSubtotal + staffTotal;
 
+  const catItems = (cat: string) => items.filter(i => i.category === cat);
+  const catTotal = (cat: string) => catItems(cat).reduce((s, i) => s + i.unit_price * i.quantity, 0);
+
+  // ── Save ─────────────────────────────────────────────────────────────────────
   const handleSave = async (redirectToView = false) => {
     setSaving(true);
     try {
       const quoteData = {
-        quote_number: quoteNumber,
-        booking_id: bookingId ?? null,
-        ...form,
-        subtotal,
-        total: subtotal,
-        status: '草稿' as const,
+        quote_number: quoteNumber, booking_id: bookingId ?? null,
+        ...form, subtotal, total: subtotal,
+        status: (quoteStatus === '草稿' ? '草稿' : quoteStatus) as any,
       };
-
       let qid = existingQuoteId;
-
       if (qid) {
         await supabase.from(T.quotes).update(quoteData).eq('id', qid);
         await supabase.from(T.quoteItems).delete().eq('quote_id', qid);
         await supabase.from(T.checkedNotes).delete().eq('quote_id', qid);
+        await supabase.from(T.staffSchedule).delete().eq('quote_id', qid);
+        await supabase.from(T.quoteSchedule).delete().eq('quote_id', qid);
       } else {
         const { data } = await supabase.from(T.quotes).insert(quoteData).select().single();
         qid = data?.id;
         setExistingQuoteId(qid ?? null);
       }
-
       if (qid && items.length > 0) {
         await supabase.from(T.quoteItems).insert(items.map((item, idx) => ({
           quote_id: qid, category: item.category, name: item.name,
           unit_price: item.unit_price, quantity: item.quantity, sort_order: idx,
         })));
       }
-
+      if (qid && staffItems.length > 0) {
+        await supabase.from(T.staffSchedule).insert(staffItems.map((s, idx) => ({
+          quote_id: qid, work_date: s.work_date, start_time: s.start_time,
+          end_time: s.end_time, person_count: s.person_count, unit_price: s.unit_price, sort_order: idx,
+        })));
+      }
+      if (qid && scheduleItems.length > 0) {
+        await supabase.from(T.quoteSchedule).insert(scheduleItems.map((s, idx) => ({
+          quote_id: qid, work_date: s.work_date, start_time: s.start_time,
+          end_time: s.end_time, label: s.label, category: s.category, sort_order: idx,
+        })));
+      }
       if (qid && checkedNotes.size > 0) {
         await supabase.from(T.checkedNotes).insert(
           Array.from(checkedNotes).map(nid => ({ quote_id: qid, note_id: nid }))
         );
       }
-
-      if (redirectToView && qid) {
-        navigate(`/admin/quotes/${qid}/view`);
-      }
-    } finally {
-      setSaving(false);
-    }
+      setSaveMsg('已儲存');
+      setTimeout(() => setSaveMsg(''), 2000);
+      if (redirectToView && qid) navigate(`/admin/quotes/${qid}/view`);
+    } finally { setSaving(false); }
   };
 
-  const catItems = (cat: string) => items.filter(i => i.category === cat);
-  const catTotal = (cat: string) => catItems(cat).reduce((s, i) => s + i.unit_price * i.quantity, 0);
+  // ── Send Email ────────────────────────────────────────────────────────────────
+  const handleSendEmail = async () => {
+    if (!existingQuoteId && !quoteId) { alert('請先儲存報價單再發送'); return; }
+    setSending(true);
+    try {
+      await handleSave(false); // Ensure latest data is saved first
+      const qid = existingQuoteId ?? quoteId;
+      const { error } = await supabase.functions.invoke('send-quote-email', { body: { quote_id: qid } });
+      if (error) throw error;
+      await supabase.from(T.quotes).update({ status: '已發送' }).eq('id', qid);
+      setQuoteStatus('已發送');
+      alert('報價單已成功寄出！');
+    } catch (e: any) {
+      alert(`發送失敗：${e.message ?? '請檢查 Edge Function 設定'}`);
+    } finally { setSending(false); }
+  };
 
   return (
     <div className="space-y-5">
-      {/* Header */}
+      {/* ── Header ── */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div className="flex items-center gap-3">
           <Link to="/admin/quotes" className="p-2 hover:bg-gray-100 rounded-xl transition-colors">
@@ -215,10 +295,17 @@ export default function QuoteBuilder() {
             <p className="text-sm text-gray-400 font-mono mt-0.5">{quoteNumber}</p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
+          {saveMsg && <span className="text-sm text-green-600 font-medium">{saveMsg}</span>}
+          {form.email && (
+            <button onClick={handleSendEmail} disabled={sending || saving}
+              className="flex items-center gap-2 px-4 py-2 bg-blue-500 hover:bg-blue-600 text-white text-sm rounded-xl transition-all disabled:opacity-60">
+              <Send size={15} />{sending ? '發送中...' : '發送給客戶'}
+            </button>
+          )}
           <button onClick={() => handleSave(false)} disabled={saving}
             className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 text-sm rounded-xl transition-all disabled:opacity-60">
-            <Save size={15} />儲存草稿
+            <Save size={15} />儲存
           </button>
           <button onClick={() => handleSave(true)} disabled={saving}
             className="flex items-center gap-2 px-4 py-2 bg-brand-500 hover:bg-brand-600 text-white text-sm rounded-xl transition-all disabled:opacity-60">
@@ -228,7 +315,7 @@ export default function QuoteBuilder() {
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-5">
-        {/* Left: Customer Info + Items */}
+        {/* ── Left Column ── */}
         <div className="xl:col-span-2 space-y-5">
           {/* Customer Info */}
           <div className="bg-white rounded-2xl border border-gray-100 p-5">
@@ -237,7 +324,7 @@ export default function QuoteBuilder() {
               {[
                 { field: 'customer_name', label: '客戶姓名 *', placeholder: '王小明' },
                 { field: 'phone', label: '聯絡電話 *', placeholder: '0912-345-678' },
-                { field: 'email', label: 'E-mail', placeholder: 'client@example.com' },
+                { field: 'email', label: 'E-mail（發送報價單用）', placeholder: 'client@example.com' },
                 { field: 'tax_id', label: '統一編號', placeholder: '（選填）' },
                 { field: 'company_name', label: '公司抬頭', placeholder: '（選填）' },
               ].map(({ field, label, placeholder }) => (
@@ -253,25 +340,21 @@ export default function QuoteBuilder() {
               <div>
                 <label className="block text-xs font-medium text-gray-500 mb-1.5">搬遷地址（舊家）</label>
                 <input value={form.address_from} onChange={e => setForm({ ...form, address_from: e.target.value })}
-                  placeholder="台北市..."
-                  className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400" />
+                  placeholder="台北市..." className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400" />
               </div>
               <div>
                 <label className="block text-xs font-medium text-gray-500 mb-1.5">搬入地址（新家）</label>
                 <input value={form.address_to} onChange={e => setForm({ ...form, address_to: e.target.value })}
-                  placeholder="新北市..."
-                  className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400" />
+                  placeholder="新北市..." className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400" />
               </div>
             </div>
           </div>
 
-          {/* Product Selection by Category */}
+          {/* Product Categories */}
           {CATEGORIES.map(cat => (
             <div key={cat} className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
-              <button
-                onClick={() => setExpandedCats(p => ({ ...p, [cat]: !p[cat] }))}
-                className="w-full px-5 py-4 flex items-center justify-between hover:bg-gray-50 transition-colors"
-              >
+              <button onClick={() => setExpandedCats(p => ({ ...p, [cat]: !p[cat] }))}
+                className="w-full px-5 py-4 flex items-center justify-between hover:bg-gray-50 transition-colors">
                 <div className="flex items-center gap-3">
                   <span className="font-semibold text-gray-800">{cat}</span>
                   {catItems(cat).length > 0 && (
@@ -282,22 +365,17 @@ export default function QuoteBuilder() {
                 </div>
                 {expandedCats[cat] ? <ChevronUp size={18} className="text-gray-400" /> : <ChevronDown size={18} className="text-gray-400" />}
               </button>
-
               {expandedCats[cat] && (
                 <div className="px-5 pb-5">
-                  {/* Product Buttons */}
                   <div className="flex flex-wrap gap-2 mb-4">
                     {PRODUCT_CATALOG[cat].map(p => (
                       <button key={p.name} onClick={() => addItem(cat, p.name, p.price)}
                         className="text-xs bg-gray-100 hover:bg-brand-100 hover:text-brand-700 text-gray-600 px-3 py-1.5 rounded-full transition-all flex items-center gap-1">
-                        <Plus size={12} />
-                        {p.name}
+                        <Plus size={12} />{p.name}
                         {p.price > 0 && <span className="text-gray-400 ml-1">${p.price.toLocaleString()}</span>}
                       </button>
                     ))}
                   </div>
-
-                  {/* Added Items */}
                   {catItems(cat).length > 0 && (
                     <div className="space-y-2">
                       <div className="grid grid-cols-12 text-xs text-gray-400 font-medium px-2 gap-2">
@@ -341,6 +419,142 @@ export default function QuoteBuilder() {
             </div>
           ))}
 
+          {/* ── Staff Schedule Items ── */}
+          <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+            <button onClick={() => setExpandedCats(p => ({ ...p, _staff: !p._staff }))}
+              className="w-full px-5 py-4 flex items-center justify-between hover:bg-gray-50 transition-colors">
+              <div className="flex items-center gap-3">
+                <Users size={18} className="text-brand-500" />
+                <span className="font-semibold text-gray-800">人員工時安排</span>
+                {staffItems.length > 0 && (
+                  <span className="bg-green-100 text-green-700 text-xs font-medium px-2 py-0.5 rounded-full">
+                    {staffItems.length} 筆 · NT${staffTotal.toLocaleString()}
+                  </span>
+                )}
+              </div>
+              {expandedCats._staff ? <ChevronUp size={18} className="text-gray-400" /> : <ChevronDown size={18} className="text-gray-400" />}
+            </button>
+            {expandedCats._staff && (
+              <div className="px-5 pb-5">
+                <p className="text-xs text-gray-400 mb-3">每筆記錄計算：工時 × 人數 × 時薪</p>
+                {staffItems.length > 0 && (
+                  <div className="space-y-2 mb-3">
+                    <div className="grid grid-cols-12 text-xs text-gray-400 font-medium gap-2 px-2">
+                      <span className="col-span-2">日期</span>
+                      <span className="col-span-2">開始</span>
+                      <span className="col-span-2">結束</span>
+                      <span className="col-span-1 text-center">人數</span>
+                      <span className="col-span-2 text-right">時薪/人</span>
+                      <span className="col-span-2 text-right">小計</span>
+                      <span className="col-span-1" />
+                    </div>
+                    {staffItems.map((item, idx) => {
+                      const hours = calcHours(item.start_time, item.end_time);
+                      const sub = Math.round(hours * item.person_count * item.unit_price);
+                      return (
+                        <div key={idx} className="grid grid-cols-12 gap-2 items-center bg-gray-50 rounded-xl px-2 py-2">
+                          <input type="date" value={item.work_date}
+                            onChange={e => updateStaffItem(idx, 'work_date', e.target.value)}
+                            className="col-span-2 bg-white border border-gray-200 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-brand-400" />
+                          <input type="time" value={item.start_time}
+                            onChange={e => updateStaffItem(idx, 'start_time', e.target.value)}
+                            className="col-span-2 bg-white border border-gray-200 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-brand-400" />
+                          <input type="time" value={item.end_time}
+                            onChange={e => updateStaffItem(idx, 'end_time', e.target.value)}
+                            className="col-span-2 bg-white border border-gray-200 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-brand-400" />
+                          <input type="number" min={1} value={item.person_count}
+                            onChange={e => updateStaffItem(idx, 'person_count', +e.target.value)}
+                            className="col-span-1 bg-white border border-gray-200 rounded-lg px-1 py-1 text-xs text-center focus:outline-none focus:ring-1 focus:ring-brand-400" />
+                          <div className="col-span-2 flex items-center justify-end gap-0.5">
+                            <span className="text-xs text-gray-400">$</span>
+                            <input type="number" value={item.unit_price}
+                              onChange={e => updateStaffItem(idx, 'unit_price', +e.target.value)}
+                              className="w-16 text-right text-xs bg-white border border-gray-200 rounded-lg px-1 py-1 focus:outline-none focus:ring-1 focus:ring-brand-400" />
+                          </div>
+                          <div className="col-span-2 text-right text-xs font-semibold text-gray-800">
+                            ${sub.toLocaleString()}
+                            <div className="text-gray-400 font-normal">{hours.toFixed(1)}h</div>
+                          </div>
+                          <button onClick={() => removeStaffItem(idx)} className="col-span-1 flex justify-center p-1 hover:text-red-500 transition-colors">
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      );
+                    })}
+                    <div className="text-right text-sm font-semibold text-green-600 pr-2 pt-1">
+                      人員費小計：NT${staffTotal.toLocaleString()}
+                    </div>
+                  </div>
+                )}
+                <button onClick={addStaffItem}
+                  className="flex items-center gap-2 text-sm text-brand-600 hover:text-brand-700 border border-dashed border-brand-300 hover:border-brand-400 px-4 py-2 rounded-xl transition-all w-full justify-center">
+                  <Plus size={15} />新增人員工時記錄
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* ── Quote Schedule (Gantt Input) ── */}
+          <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+            <button onClick={() => setExpandedCats(p => ({ ...p, _schedule: !p._schedule }))}
+              className="w-full px-5 py-4 flex items-center justify-between hover:bg-gray-50 transition-colors">
+              <div className="flex items-center gap-3">
+                <CalendarDays size={18} className="text-purple-500" />
+                <span className="font-semibold text-gray-800">作業排程</span>
+                {scheduleItems.length > 0 && (
+                  <span className="bg-purple-100 text-purple-700 text-xs font-medium px-2 py-0.5 rounded-full">
+                    {scheduleItems.length} 項
+                  </span>
+                )}
+              </div>
+              {expandedCats._schedule ? <ChevronUp size={18} className="text-gray-400" /> : <ChevronDown size={18} className="text-gray-400" />}
+            </button>
+            {expandedCats._schedule && (
+              <div className="px-5 pb-5">
+                <p className="text-xs text-gray-400 mb-3">列印報價單時將顯示排程表與 Gantt 圖</p>
+                {scheduleItems.length > 0 && (
+                  <div className="space-y-2 mb-3">
+                    <div className="grid grid-cols-12 text-xs text-gray-400 font-medium gap-2 px-2">
+                      <span className="col-span-2">日期</span>
+                      <span className="col-span-1">開始</span>
+                      <span className="col-span-1">結束</span>
+                      <span className="col-span-5">作業名稱</span>
+                      <span className="col-span-2">分類</span>
+                      <span className="col-span-1" />
+                    </div>
+                    {scheduleItems.map((item, idx) => (
+                      <div key={idx} className="grid grid-cols-12 gap-2 items-center bg-gray-50 rounded-xl px-2 py-2">
+                        <input type="date" value={item.work_date}
+                          onChange={e => updateScheduleItem(idx, 'work_date', e.target.value)}
+                          className="col-span-2 bg-white border border-gray-200 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-brand-400" />
+                        <input type="time" value={item.start_time}
+                          onChange={e => updateScheduleItem(idx, 'start_time', e.target.value)}
+                          className="col-span-1 bg-white border border-gray-200 rounded-lg px-1 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-brand-400" />
+                        <input type="time" value={item.end_time}
+                          onChange={e => updateScheduleItem(idx, 'end_time', e.target.value)}
+                          className="col-span-1 bg-white border border-gray-200 rounded-lg px-1 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-brand-400" />
+                        <input value={item.label} onChange={e => updateScheduleItem(idx, 'label', e.target.value)}
+                          placeholder="作業名稱"
+                          className="col-span-5 bg-white border border-gray-200 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-brand-400" />
+                        <select value={item.category} onChange={e => updateScheduleItem(idx, 'category', e.target.value)}
+                          className="col-span-2 bg-white border border-gray-200 rounded-lg px-1 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-brand-400">
+                          {SCHEDULE_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+                        </select>
+                        <button onClick={() => removeScheduleItem(idx)} className="col-span-1 flex justify-center p-1 hover:text-red-500 transition-colors">
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                <button onClick={addScheduleItem}
+                  className="flex items-center gap-2 text-sm text-purple-600 hover:text-purple-700 border border-dashed border-purple-300 hover:border-purple-400 px-4 py-2 rounded-xl transition-all w-full justify-center">
+                  <Plus size={15} />新增排程項目
+                </button>
+              </div>
+            )}
+          </div>
+
           {/* Notes */}
           <div className="bg-white rounded-2xl border border-gray-100 p-5">
             <h2 className="font-semibold text-gray-800 mb-4">注意事項</h2>
@@ -366,34 +580,43 @@ export default function QuoteBuilder() {
           </div>
         </div>
 
-        {/* Right: Summary */}
+        {/* ── Right: Summary ── */}
         <div className="space-y-4">
           <div className="bg-white rounded-2xl border border-gray-100 p-5 sticky top-4">
             <h2 className="font-semibold text-gray-800 mb-4">費用摘要</h2>
             <div className="space-y-3">
-              {CATEGORIES.map(cat => (
-                catItems(cat).length > 0 && (
-                  <div key={cat} className="flex justify-between text-sm">
-                    <span className="text-gray-500">{cat}</span>
-                    <span className="font-medium">NT${catTotal(cat).toLocaleString()}</span>
-                  </div>
-                )
+              {CATEGORIES.map(cat => catItems(cat).length > 0 && (
+                <div key={cat} className="flex justify-between text-sm">
+                  <span className="text-gray-500">{cat}</span>
+                  <span className="font-medium">NT${catTotal(cat).toLocaleString()}</span>
+                </div>
               ))}
+              {staffTotal > 0 && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-gray-500">人員工時費</span>
+                  <span className="font-medium">NT${staffTotal.toLocaleString()}</span>
+                </div>
+              )}
               <div className="border-t border-gray-100 pt-3 flex justify-between">
                 <span className="font-semibold text-gray-800">合計（含稅）</span>
                 <span className="text-xl font-bold text-brand-600">NT${subtotal.toLocaleString()}</span>
               </div>
             </div>
-
             <div className="mt-6 space-y-2">
               <button onClick={() => handleSave(false)} disabled={saving}
                 className="w-full flex items-center justify-center gap-2 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm rounded-xl transition-all disabled:opacity-60">
-                <Save size={15} />儲存草稿
+                <Save size={15} />儲存
               </button>
               <button onClick={() => handleSave(true)} disabled={saving}
                 className="w-full flex items-center justify-center gap-2 py-2.5 bg-brand-500 hover:bg-brand-600 text-white text-sm rounded-xl transition-all disabled:opacity-60">
                 <Eye size={15} />預覽並產出報價單
               </button>
+              {form.email && (
+                <button onClick={handleSendEmail} disabled={sending || saving}
+                  className="w-full flex items-center justify-center gap-2 py-2.5 bg-blue-500 hover:bg-blue-600 text-white text-sm rounded-xl transition-all disabled:opacity-60">
+                  <Send size={15} />{sending ? '發送中...' : '發送給客戶'}
+                </button>
+              )}
             </div>
           </div>
         </div>

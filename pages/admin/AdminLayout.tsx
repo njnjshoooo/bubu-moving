@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import {
   Truck, LayoutDashboard, Calendar, ClipboardList,
-  FileText, LogOut, Menu, X, ChevronRight
+  FileText, LogOut, Menu, ChevronRight, Users
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -11,6 +11,7 @@ const navItems = [
   { to: '/admin/calendar', label: '行事曆管理', icon: Calendar },
   { to: '/admin/bookings', label: '預約管理', icon: ClipboardList },
   { to: '/admin/quotes', label: '報價單', icon: FileText },
+  { to: '/admin/consultants', label: '顧問管理', icon: Users },
 ];
 
 export default function AdminLayout() {

@@ -7,20 +7,24 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 // ─── Table Names（加 bubu_ 前綴，避免與其他網站衝突）────────────────────────
 export const T = {
-  users:        'bubu_app_users',
-  slots:        'bubu_time_slots',
-  bookings:     'bubu_bookings',
-  quotes:       'bubu_quotes',
-  quoteItems:   'bubu_quote_items',
-  noteTemplates:'bubu_quote_note_templates',
-  checkedNotes: 'bubu_quote_checked_notes',
+  users:          'bubu_app_users',
+  slots:          'bubu_time_slots',
+  bookings:       'bubu_bookings',
+  quotes:         'bubu_quotes',
+  quoteItems:     'bubu_quote_items',
+  noteTemplates:  'bubu_quote_note_templates',
+  checkedNotes:   'bubu_quote_checked_notes',
+  consultants:    'bubu_consultants',
+  slotConsultants:'bubu_slot_consultants',
+  staffSchedule:  'bubu_staff_schedule_items',
+  quoteSchedule:  'bubu_quote_schedule_items',
 } as const;
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 export interface AppUser {
   id: string;
-  role: 'admin' | 'member';
+  role: 'admin' | 'member' | 'consultant';
   display_name: string | null;
   phone: string | null;
   created_at: string;
@@ -32,6 +36,7 @@ export interface TimeSlot {
   start_time: string;
   end_time: string;
   max_bookings: number;
+  max_waitlist: number;
   current_bookings: number;
   is_active: boolean;
   created_at: string;
@@ -45,9 +50,14 @@ export interface Booking {
   phone: string;
   email: string | null;
   address_from: string | null;
+  city: string | null;
+  district: string | null;
+  address_detail: string | null;
   service_type: string;
   notes: string | null;
   status: '待確認' | '已確認' | '進行中' | '已完成' | '已取消';
+  is_waitlist: boolean;
+  assigned_consultant_id: string | null;
   created_at: string;
   time_slots?: TimeSlot;
 }
@@ -86,5 +96,39 @@ export interface Quote {
   internal_notes: string | null;
   created_at: string;
   quote_items?: QuoteItem[];
+  staff_schedule_items?: StaffScheduleItem[];
+  quote_schedule_items?: QuoteScheduleItem[];
   bookings?: Booking;
+}
+
+export interface Consultant {
+  id: string;
+  user_id: string;
+  display_name: string;
+  phone: string | null;
+  address: string | null;
+  is_active: boolean;
+  created_at: string;
+}
+
+export interface StaffScheduleItem {
+  id: string;
+  quote_id: string;
+  work_date: string;
+  start_time: string;
+  end_time: string;
+  person_count: number;
+  unit_price: number;
+  sort_order: number;
+}
+
+export interface QuoteScheduleItem {
+  id: string;
+  quote_id: string;
+  work_date: string;
+  start_time: string;
+  end_time: string;
+  label: string;
+  category: string;
+  sort_order: number;
 }
