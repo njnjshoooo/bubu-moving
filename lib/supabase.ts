@@ -90,8 +90,11 @@ export interface Quote {
   company_name: string | null;
   address_from: string | null;
   address_to: string | null;
+  consultant_name: string | null;
+  consultant_phone: string | null;
   subtotal: number;
   total: number;
+  deposit: number;
   status: '草稿' | '已發送' | '已確認' | '已取消';
   internal_notes: string | null;
   created_at: string;
