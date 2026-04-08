@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
 import { Plus, Trash2, ChevronDown, ChevronUp, Save, Eye, ArrowLeft, Send, Users, CalendarDays } from 'lucide-react';
 import { supabase, NoteTemplate, T } from '../../lib/supabase';
@@ -103,13 +103,17 @@ export default function QuoteBuilder() {
   const [scheduleItems, setScheduleItems] = useState<ScheduleItemForm[]>([]);
   const [notes, setNotes] = useState<NoteTemplate[]>([]);
   const [checkedNotes, setCheckedNotes] = useState<Set<string>>(new Set());
-  const [expandedCats, setExpandedCats] = useState<Record<string, boolean>>({ '搬家車趟費': true });
+  const [expandedCats, setExpandedCats] = useState<Record<string, boolean>>({ '搬家車趟費': true, _staff: true, _schedule: true });
   const [saving, setSaving] = useState(false);
   const [sending, setSending] = useState(false);
   const [quoteNumber, setQuoteNumber] = useState('');
   const [existingQuoteId, setExistingQuoteId] = useState<string | null>(null);
   const [quoteStatus, setQuoteStatus] = useState<string>('草稿');
   const [saveMsg, setSaveMsg] = useState('');
+
+  // Drag-and-drop refs
+  const dragStaffIdx = useRef<number | null>(null);
+  const dragSchedIdx = useRef<number | null>(null);
 
   useEffect(() => {
     supabase.from(T.noteTemplates).select('*').eq('is_active', true).order('sort_order')
@@ -199,6 +203,15 @@ export default function QuoteBuilder() {
     setStaffItems(prev => prev.map((item, i) => i === idx ? { ...item, [field]: value } : item));
   const removeStaffItem = (idx: number) => setStaffItems(prev => prev.filter((_, i) => i !== idx));
 
+  const handleStaffDragStart = (idx: number) => { dragStaffIdx.current = idx; };
+  const handleStaffDragOver = (e: React.DragEvent, idx: number) => { e.preventDefault(); dragStaffIdx.current !== null && (dragStaffIdx.current !== idx) && (() => {
+    const next = [...staffItems];
+    const [moved] = next.splice(dragStaffIdx.current!, 1);
+    next.splice(idx, 0, moved);
+    dragStaffIdx.current = idx;
+    setStaffItems(next);
+  })(); };
+
   // ── Schedule Items ───────────────────────────────────────────────────────────
   const addScheduleItem = () => setScheduleItems(prev => [...prev, {
     work_date: TODAY, start_time: '09:00', end_time: '10:00', label: '', category: '搬家',
@@ -206,6 +219,17 @@ export default function QuoteBuilder() {
   const updateScheduleItem = (idx: number, field: keyof ScheduleItemForm, value: string) =>
     setScheduleItems(prev => prev.map((item, i) => i === idx ? { ...item, [field]: value } : item));
   const removeScheduleItem = (idx: number) => setScheduleItems(prev => prev.filter((_, i) => i !== idx));
+
+  const handleSchedDragStart = (idx: number) => { dragSchedIdx.current = idx; };
+  const handleSchedDragOver = (e: React.DragEvent, idx: number) => {
+    e.preventDefault();
+    if (dragSchedIdx.current === null || dragSchedIdx.current === idx) return;
+    const next = [...scheduleItems];
+    const [moved] = next.splice(dragSchedIdx.current, 1);
+    next.splice(idx, 0, moved);
+    dragSchedIdx.current = idx;
+    setScheduleItems(next);
+  };
 
   // ── Subtotals ─────────────────────────────────────────────────────────────────
   const lineItemSubtotal = items.reduce((sum, i) => sum + i.unit_price * i.quantity, 0);
@@ -396,10 +420,14 @@ export default function QuoteBuilder() {
                           </div>
                           <div className="col-span-2 flex items-center justify-center gap-1">
                             <button onClick={() => updateItem(idx, 'quantity', Math.max(1, item.quantity - 1))}
-                              className="w-6 h-6 flex items-center justify-center bg-white border border-gray-200 rounded text-sm hover:bg-gray-100">-</button>
-                            <span className="text-sm font-medium w-6 text-center">{item.quantity}</span>
+                              className="w-6 h-6 flex items-center justify-center bg-white border border-gray-200 rounded text-sm hover:bg-gray-100 flex-shrink-0">-</button>
+                            <input
+                              type="number" min={1} value={item.quantity}
+                              onChange={e => updateItem(idx, 'quantity', Math.max(1, parseInt(e.target.value) || 1))}
+                              className="w-10 text-center text-sm border border-gray-200 rounded px-1 py-0.5 focus:outline-none focus:ring-1 focus:ring-brand-400"
+                            />
                             <button onClick={() => updateItem(idx, 'quantity', item.quantity + 1)}
-                              className="w-6 h-6 flex items-center justify-center bg-white border border-gray-200 rounded text-sm hover:bg-gray-100">+</button>
+                              className="w-6 h-6 flex items-center justify-center bg-white border border-gray-200 rounded text-sm hover:bg-gray-100 flex-shrink-0">+</button>
                           </div>
                           <div className="col-span-2 text-right text-sm font-medium text-gray-800">
                             ${(item.unit_price * item.quantity).toLocaleString()}
@@ -452,7 +480,11 @@ export default function QuoteBuilder() {
                       const hours = calcHours(item.start_time, item.end_time);
                       const sub = Math.round(hours * item.person_count * item.unit_price);
                       return (
-                        <div key={idx} className="grid grid-cols-12 gap-2 items-center bg-gray-50 rounded-xl px-2 py-2">
+                        <div key={idx}
+                          draggable
+                          onDragStart={() => handleStaffDragStart(idx)}
+                          onDragOver={e => handleStaffDragOver(e, idx)}
+                          className="grid grid-cols-12 gap-2 items-center bg-gray-50 rounded-xl px-2 py-2 cursor-grab active:cursor-grabbing">
                           <input type="date" value={item.work_date}
                             onChange={e => updateStaffItem(idx, 'work_date', e.target.value)}
                             className="col-span-2 bg-white border border-gray-200 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-brand-400" />
@@ -473,7 +505,7 @@ export default function QuoteBuilder() {
                           </div>
                           <div className="col-span-2 text-right text-xs font-semibold text-gray-800">
                             ${sub.toLocaleString()}
-                            <div className="text-gray-400 font-normal">{hours.toFixed(1)}h</div>
+                            <div className="text-gray-400 font-normal">{hours.toFixed(1)}h × {item.person_count}人</div>
                           </div>
                           <button onClick={() => removeStaffItem(idx)} className="col-span-1 flex justify-center p-1 hover:text-red-500 transition-colors">
                             <Trash2 size={14} />
@@ -523,7 +555,11 @@ export default function QuoteBuilder() {
                       <span className="col-span-1" />
                     </div>
                     {scheduleItems.map((item, idx) => (
-                      <div key={idx} className="grid grid-cols-12 gap-2 items-center bg-gray-50 rounded-xl px-2 py-2">
+                      <div key={idx}
+                        draggable
+                        onDragStart={() => handleSchedDragStart(idx)}
+                        onDragOver={e => handleSchedDragOver(e, idx)}
+                        className="grid grid-cols-12 gap-2 items-center bg-gray-50 rounded-xl px-2 py-2 cursor-grab active:cursor-grabbing">
                         <input type="date" value={item.work_date}
                           onChange={e => updateScheduleItem(idx, 'work_date', e.target.value)}
                           className="col-span-2 bg-white border border-gray-200 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-brand-400" />
