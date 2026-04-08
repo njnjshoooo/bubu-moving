@@ -58,8 +58,11 @@ const Footer: React.FC = () => {
           </div>
         </div>
 
-        <div className="border-t border-gray-800 pt-8 text-center text-gray-500 text-sm">
+        <div className="border-t border-gray-800 pt-8 flex flex-col sm:flex-row items-center justify-between gap-2 text-gray-500 text-sm">
           <p>&copy; {new Date().getFullYear()} 步步搬家 BuBu Moving. All rights reserved.</p>
+          <a href="/#/login" className="text-gray-600 hover:text-gray-400 transition-colors text-xs">
+            員工後台
+          </a>
         </div>
       </div>
     </footer>
