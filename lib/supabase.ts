@@ -5,6 +5,17 @@ const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
+// ─── Table Names（加 bubu_ 前綴，避免與其他網站衝突）────────────────────────
+export const T = {
+  users:        'bubu_app_users',
+  slots:        'bubu_time_slots',
+  bookings:     'bubu_bookings',
+  quotes:       'bubu_quotes',
+  quoteItems:   'bubu_quote_items',
+  noteTemplates:'bubu_quote_note_templates',
+  checkedNotes: 'bubu_quote_checked_notes',
+} as const;
+
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 export interface AppUser {

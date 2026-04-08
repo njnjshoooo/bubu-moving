@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Search, Filter, FileText, Phone, MapPin, Calendar } from 'lucide-react';
-import { supabase, Booking } from '../../lib/supabase';
+import { supabase, Booking, T } from '../../lib/supabase';
 
 const STATUSES = ['全部', '待確認', '已確認', '進行中', '已完成', '已取消'];
 const statusColor: Record<string, string> = {
@@ -21,8 +21,8 @@ export default function AdminBookings() {
 
   const fetchBookings = async () => {
     const { data } = await supabase
-      .from('bookings')
-      .select('*, time_slots(date, start_time, end_time)')
+      .from(T.bookings)
+      .select(`*, time_slots:${T.slots}(date, start_time, end_time)`)
       .order('created_at', { ascending: false });
     setBookings((data as Booking[]) ?? []);
     setFiltered((data as Booking[]) ?? []);
@@ -41,7 +41,7 @@ export default function AdminBookings() {
   }, [search, statusFilter, bookings]);
 
   const updateStatus = async (id: string, status: string) => {
-    await supabase.from('bookings').update({ status }).eq('id', id);
+    await supabase.from(T.bookings).update({ status }).eq('id', id);
     fetchBookings();
   };
 

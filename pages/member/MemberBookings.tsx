@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Calendar, MapPin, Phone, Clock } from 'lucide-react';
-import { supabase } from '../../lib/supabase';
+import { supabase, T } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 
 const statusColor: Record<string, string> = {
@@ -18,8 +18,8 @@ export default function MemberBookings() {
 
   useEffect(() => {
     if (!user) return;
-    supabase.from('bookings')
-      .select('*, time_slots(date, start_time, end_time)')
+    supabase.from(T.bookings)
+      .select(`*, time_slots:${T.slots}(date, start_time, end_time)`)
       .eq('user_id', user.id)
       .order('created_at', { ascending: false })
       .then(({ data }) => { setBookings(data ?? []); setLoading(false); });

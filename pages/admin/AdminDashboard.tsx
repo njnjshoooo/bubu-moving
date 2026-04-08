@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ClipboardList, FileText, Calendar, TrendingUp, Clock, CheckCircle, AlertCircle } from 'lucide-react';
-import { supabase } from '../../lib/supabase';
+import { supabase, T } from '../../lib/supabase';
 
 interface Stats {
   totalBookings: number;
@@ -20,10 +20,10 @@ export default function AdminDashboard() {
     const fetchData = async () => {
       const today = new Date().toISOString().split('T')[0];
       const [bookingsRes, quotesRes, slotsRes, recentRes] = await Promise.all([
-        supabase.from('bookings').select('status'),
-        supabase.from('quotes').select('status'),
-        supabase.from('time_slots').select('id').gte('date', today).eq('is_active', true),
-        supabase.from('bookings').select('*, time_slots(date, start_time)').order('created_at', { ascending: false }).limit(5),
+        supabase.from(T.bookings).select('status'),
+        supabase.from(T.quotes).select('status'),
+        supabase.from(T.slots).select('id').gte('date', today).eq('is_active', true),
+        supabase.from(T.bookings).select(`*, time_slots:${T.slots}(date, start_time)`).order('created_at', { ascending: false }).limit(5),
       ]);
       setStats({
         totalBookings: bookingsRes.data?.length ?? 0,

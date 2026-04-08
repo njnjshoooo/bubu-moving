@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Calendar, Clock, User, Phone, MapPin, CheckCircle, ChevronLeft, ChevronRight } from 'lucide-react';
-import { supabase, TimeSlot } from '../lib/supabase';
+import { supabase, TimeSlot, T } from '../lib/supabase';
 
 const DAYS = ['日', '一', '二', '三', '四', '五', '六'];
 
@@ -15,7 +15,7 @@ export default function BookingCalendar() {
 
   useEffect(() => {
     const today = new Date().toISOString().split('T')[0];
-    supabase.from('time_slots').select('*')
+    supabase.from(T.slots).select('*')
       .eq('is_active', true)
       .gte('date', today)
       .order('date').order('start_time')
@@ -42,7 +42,7 @@ export default function BookingCalendar() {
     if (!selectedSlot) return;
     setError('');
     setSubmitting(true);
-    const { error: err } = await supabase.from('bookings').insert({
+    const { error: err } = await supabase.from(T.bookings).insert({
       time_slot_id: selectedSlot.id,
       customer_name: form.customer_name,
       phone: form.phone,
@@ -55,7 +55,7 @@ export default function BookingCalendar() {
       return;
     }
     // Increment slot bookings
-    await supabase.from('time_slots')
+    await supabase.from(T.slots)
       .update({ current_bookings: selectedSlot.current_bookings + 1 })
       .eq('id', selectedSlot.id);
     setStep('success');

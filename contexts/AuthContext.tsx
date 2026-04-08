@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User, Session } from '@supabase/supabase-js';
-import { supabase, AppUser } from '../lib/supabase';
+import { supabase, AppUser, T } from '../lib/supabase';
 
 interface AuthContextType {
   user: User | null;
@@ -23,7 +23,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const fetchProfile = async (userId: string) => {
     const { data } = await supabase
-      .from('app_users')
+      .from(T.users)
       .select('*')
       .eq('id', userId)
       .single();

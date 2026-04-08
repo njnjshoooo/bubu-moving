@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { User, Phone, Save, CheckCircle } from 'lucide-react';
-import { supabase } from '../../lib/supabase';
+import { supabase, T } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 
 export default function MemberProfile() {
@@ -16,7 +16,7 @@ export default function MemberProfile() {
     e.preventDefault();
     if (!user) return;
     setSaving(true);
-    await supabase.from('app_users').update({ display_name: form.display_name, phone: form.phone }).eq('id', user.id);
+    await supabase.from(T.users).update({ display_name: form.display_name, phone: form.phone }).eq('id', user.id);
     setSaving(false);
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Plus, Eye, Edit, Search } from 'lucide-react';
-import { supabase, Quote } from '../../lib/supabase';
+import { supabase, Quote, T } from '../../lib/supabase';
 
 const statusColor: Record<string, string> = {
   '草稿': 'bg-gray-100 text-gray-500',
@@ -16,7 +16,7 @@ export default function AdminQuoteList() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    supabase.from('quotes').select('*').order('created_at', { ascending: false })
+    supabase.from(T.quotes).select('*').order('created_at', { ascending: false })
       .then(({ data }) => { setQuotes((data as Quote[]) ?? []); setLoading(false); });
   }, []);
 
@@ -25,7 +25,7 @@ export default function AdminQuoteList() {
   );
 
   const updateStatus = async (id: string, status: string) => {
-    await supabase.from('quotes').update({ status }).eq('id', id);
+    await supabase.from(T.quotes).update({ status }).eq('id', id);
     setQuotes(prev => prev.map(q => q.id === id ? { ...q, status: status as Quote['status'] } : q));
   };
 

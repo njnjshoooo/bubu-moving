@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { Printer, ArrowLeft, Edit } from 'lucide-react';
-import { supabase, Quote, NoteTemplate } from '../../lib/supabase';
+import { supabase, Quote, NoteTemplate, T } from '../../lib/supabase';
 
 const CATEGORIES = ['搬家車趟費', '打包計時人員', '包材費'];
 
@@ -14,8 +14,8 @@ export default function QuoteView() {
 
   useEffect(() => {
     const load = async () => {
-      const { data } = await supabase.from('quotes')
-        .select('*, quote_items(*), quote_checked_notes(note_id, quote_note_templates(content, sort_order))')
+      const { data } = await supabase.from(T.quotes)
+        .select(`*, quote_items:${T.quoteItems}(*), quote_checked_notes:${T.checkedNotes}(note_id, quote_note_templates:${T.noteTemplates}(content, sort_order))`)
         .eq('id', quoteId!)
         .single();
       if (data) {

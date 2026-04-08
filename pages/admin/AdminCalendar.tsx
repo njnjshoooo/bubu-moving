@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Plus, Trash2, ChevronLeft, ChevronRight, Eye, EyeOff } from 'lucide-react';
-import { supabase, TimeSlot } from '../../lib/supabase';
+import { supabase, TimeSlot, T } from '../../lib/supabase';
 
 const DAYS = ['日', '一', '二', '三', '四', '五', '六'];
 const MONTHS = ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月'];
@@ -15,7 +15,7 @@ export default function AdminCalendar() {
   const [saving, setSaving] = useState(false);
 
   const fetchSlots = async () => {
-    const { data } = await supabase.from('time_slots').select('*').order('date').order('start_time');
+    const { data } = await supabase.from(T.slots).select('*').order('date').order('start_time');
     setSlots(data ?? []);
     setLoading(false);
   };
@@ -40,7 +40,7 @@ export default function AdminCalendar() {
   const handleAddSlot = async () => {
     if (!selectedDate) return;
     setSaving(true);
-    await supabase.from('time_slots').insert({
+    await supabase.from(T.slots).insert({
       date: selectedDate,
       start_time: form.start_time,
       end_time: form.end_time,
@@ -52,13 +52,13 @@ export default function AdminCalendar() {
   };
 
   const handleToggle = async (slot: TimeSlot) => {
-    await supabase.from('time_slots').update({ is_active: !slot.is_active }).eq('id', slot.id);
+    await supabase.from(T.slots).update({ is_active: !slot.is_active }).eq('id', slot.id);
     await fetchSlots();
   };
 
   const handleDelete = async (id: string) => {
     if (!confirm('確定要刪除此時段嗎？')) return;
-    await supabase.from('time_slots').delete().eq('id', id);
+    await supabase.from(T.slots).delete().eq('id', id);
     await fetchSlots();
   };
 

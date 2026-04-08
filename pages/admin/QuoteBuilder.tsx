@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
 import { Plus, Trash2, ChevronDown, ChevronUp, Save, Eye, ArrowLeft } from 'lucide-react';
-import { supabase, NoteTemplate, Booking } from '../../lib/supabase';
+import { supabase, NoteTemplate, Booking, T } from '../../lib/supabase';
 
 // ─── Product Catalog ──────────────────────────────────────────────────────────
 const PRODUCT_CATALOG: Record<string, { name: string; price: number }[]> = {
@@ -75,14 +75,14 @@ export default function QuoteBuilder() {
 
   // Load note templates
   useEffect(() => {
-    supabase.from('quote_note_templates').select('*').eq('is_active', true).order('sort_order')
+    supabase.from(T.noteTemplates).select('*').eq('is_active', true).order('sort_order')
       .then(({ data }) => setNotes(data ?? []));
   }, []);
 
   // Load booking if coming from a booking
   useEffect(() => {
     if (bookingId) {
-      supabase.from('bookings').select('*').eq('id', bookingId).single()
+      supabase.from(T.bookings).select('*').eq('id', bookingId).single()
         .then(({ data }) => {
           if (data) {
             setForm(f => ({
@@ -106,7 +106,7 @@ export default function QuoteBuilder() {
       setQuoteNumber(num);
       return;
     }
-    supabase.from('quotes').select('*, quote_items(*), quote_checked_notes(note_id)')
+    supabase.from(T.quotes).select(`*, quote_items:${T.quoteItems}(*), quote_checked_notes:${T.checkedNotes}(note_id)`)
       .eq('id', quoteId).single()
       .then(({ data }) => {
         if (!data) return;
@@ -169,24 +169,24 @@ export default function QuoteBuilder() {
       let qid = existingQuoteId;
 
       if (qid) {
-        await supabase.from('quotes').update(quoteData).eq('id', qid);
-        await supabase.from('quote_items').delete().eq('quote_id', qid);
-        await supabase.from('quote_checked_notes').delete().eq('quote_id', qid);
+        await supabase.from(T.quotes).update(quoteData).eq('id', qid);
+        await supabase.from(T.quoteItems).delete().eq('quote_id', qid);
+        await supabase.from(T.checkedNotes).delete().eq('quote_id', qid);
       } else {
-        const { data } = await supabase.from('quotes').insert(quoteData).select().single();
+        const { data } = await supabase.from(T.quotes).insert(quoteData).select().single();
         qid = data?.id;
         setExistingQuoteId(qid ?? null);
       }
 
       if (qid && items.length > 0) {
-        await supabase.from('quote_items').insert(items.map((item, idx) => ({
+        await supabase.from(T.quoteItems).insert(items.map((item, idx) => ({
           quote_id: qid, category: item.category, name: item.name,
           unit_price: item.unit_price, quantity: item.quantity, sort_order: idx,
         })));
       }
 
       if (qid && checkedNotes.size > 0) {
-        await supabase.from('quote_checked_notes').insert(
+        await supabase.from(T.checkedNotes).insert(
           Array.from(checkedNotes).map(nid => ({ quote_id: qid, note_id: nid }))
         );
       }
