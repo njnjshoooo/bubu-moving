@@ -89,7 +89,15 @@ export interface Quote {
   tax_id: string | null;
   company_name: string | null;
   address_from: string | null;
+  address_from_type: string | null;
+  address_from_parking: string | null;
+  address_from_basement: string | null;
+  address_from_guard: string | null;
   address_to: string | null;
+  address_to_type: string | null;
+  address_to_parking: string | null;
+  address_to_basement: string | null;
+  address_to_guard: string | null;
   consultant_name: string | null;
   consultant_phone: string | null;
   subtotal: number;

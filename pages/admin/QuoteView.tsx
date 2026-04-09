@@ -177,18 +177,27 @@ export default function QuoteView() {
           </div>
           <div>
             <p className="text-xs text-gray-400 uppercase tracking-wide mb-2">搬遷資訊</p>
-            {quote.address_from && (
-              <div className="mb-2">
-                <p className="text-xs text-gray-400">搬出地址</p>
-                <p className="text-sm text-gray-700">{quote.address_from}</p>
-              </div>
-            )}
-            {quote.address_to && (
-              <div>
-                <p className="text-xs text-gray-400">搬入地址</p>
-                <p className="text-sm text-gray-700">{quote.address_to}</p>
-              </div>
-            )}
+            {(['from', 'to'] as const).map(side => {
+              const addr = side === 'from' ? quote.address_from : quote.address_to;
+              const addrLabel = side === 'from' ? '搬遷地址' : '搬入地址';
+              const type = side === 'from' ? quote.address_from_type : quote.address_to_type;
+              const parking = side === 'from' ? quote.address_from_parking : quote.address_to_parking;
+              const basement = side === 'from' ? quote.address_from_basement : quote.address_to_basement;
+              const guard = side === 'from' ? quote.address_from_guard : quote.address_to_guard;
+              if (!addr) return null;
+              return (
+                <div key={side} className={side === 'to' ? 'mt-3 pt-3 border-t border-gray-200' : ''}>
+                  <p className="text-xs text-gray-400">{addrLabel}</p>
+                  <p className="text-sm text-gray-700 font-medium mb-1">{addr}</p>
+                  <div className="flex flex-wrap gap-x-4 gap-y-0.5">
+                    {type && <span className="text-xs text-gray-500">建築：{type}</span>}
+                    {parking && <span className="text-xs text-gray-500">臨停區：{parking}</span>}
+                    {basement && <span className="text-xs text-gray-500">地下室高度：{basement}</span>}
+                    {guard && <span className="text-xs text-gray-500">管理室：{guard}</span>}
+                  </div>
+                </div>
+              );
+            })}
           </div>
           {quote.consultant_name && (
             <div>

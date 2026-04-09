@@ -73,7 +73,15 @@ interface QuoteForm {
   tax_id: string;
   company_name: string;
   address_from: string;
+  address_from_type: string;
+  address_from_parking: string;
+  address_from_basement: string;
+  address_from_guard: string;
   address_to: string;
+  address_to_type: string;
+  address_to_parking: string;
+  address_to_basement: string;
+  address_to_guard: string;
   consultant_name: string;
   consultant_phone: string;
   internal_notes: string;
@@ -98,7 +106,9 @@ export default function QuoteBuilder() {
 
   const [form, setForm] = useState<QuoteForm>({
     customer_name: '', phone: '', email: '', tax_id: '',
-    company_name: '', address_from: '', address_to: '',
+    company_name: '',
+    address_from: '', address_from_type: '', address_from_parking: '', address_from_basement: '', address_from_guard: '',
+    address_to: '', address_to_type: '', address_to_parking: '', address_to_basement: '', address_to_guard: '',
     consultant_name: '', consultant_phone: '', internal_notes: '',
   });
   const [deposit, setDeposit] = useState(0);
@@ -157,7 +167,12 @@ export default function QuoteBuilder() {
         customer_name: data.customer_name, phone: data.phone,
         email: data.email ?? '', tax_id: data.tax_id ?? '',
         company_name: data.company_name ?? '',
-        address_from: data.address_from ?? '', address_to: data.address_to ?? '',
+        address_from: data.address_from ?? '',
+        address_from_type: data.address_from_type ?? '', address_from_parking: data.address_from_parking ?? '',
+        address_from_basement: data.address_from_basement ?? '', address_from_guard: data.address_from_guard ?? '',
+        address_to: data.address_to ?? '',
+        address_to_type: data.address_to_type ?? '', address_to_parking: data.address_to_parking ?? '',
+        address_to_basement: data.address_to_basement ?? '', address_to_guard: data.address_to_guard ?? '',
         consultant_name: data.consultant_name ?? '',
         consultant_phone: data.consultant_phone ?? '',
         internal_notes: data.internal_notes ?? '',
@@ -344,18 +359,72 @@ export default function QuoteBuilder() {
                 </div>
               ))}
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
-              <div>
-                <label className="block text-xs font-medium text-gray-500 mb-1.5">搬遷地址（舊家）</label>
-                <input value={form.address_from} onChange={e => setForm({ ...form, address_from: e.target.value })}
-                  placeholder="台北市..." className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400" />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-500 mb-1.5">搬入地址（新家）</label>
-                <input value={form.address_to} onChange={e => setForm({ ...form, address_to: e.target.value })}
-                  placeholder="新北市..." className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400" />
-              </div>
-            </div>
+            {/* Address blocks */}
+            {(['from', 'to'] as const).map(side => {
+              const addrKey = `address_${side}` as const;
+              const label = side === 'from' ? '搬遷地址' : '搬入地址';
+              const placeholder = side === 'from' ? '台北市...' : '新北市...';
+              const typeKey = `address_${side}_type` as keyof QuoteForm;
+              const parkingKey = `address_${side}_parking` as keyof QuoteForm;
+              const basementKey = `address_${side}_basement` as keyof QuoteForm;
+              const guardKey = `address_${side}_guard` as keyof QuoteForm;
+              return (
+                <div key={side} className="mt-4 pt-4 border-t border-gray-100">
+                  <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">{label}</h3>
+                  <input value={form[addrKey]} onChange={e => setForm({ ...form, [addrKey]: e.target.value })}
+                    placeholder={placeholder}
+                    className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400 mb-3" />
+                  <div className="grid grid-cols-2 gap-x-4 gap-y-3">
+                    {/* Q1 建築類型 */}
+                    <div>
+                      <p className="text-xs text-gray-500 mb-1.5">建築類型</p>
+                      <div className="flex gap-2 flex-wrap">
+                        {['電梯大樓', '1F、樓梯'].map(opt => (
+                          <button key={opt} type="button"
+                            onClick={() => setForm(f => ({ ...f, [typeKey]: opt }))}
+                            className={`px-3 py-1 rounded-lg text-xs border transition-all ${form[typeKey] === opt ? 'bg-brand-500 text-white border-brand-500' : 'bg-white text-gray-600 border-gray-200 hover:border-brand-300'}`}>
+                            {opt}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    {/* Q2 臨停區 */}
+                    <div>
+                      <p className="text-xs text-gray-500 mb-1.5">是否有臨停區</p>
+                      <div className="flex gap-2">
+                        {['是', '否'].map(opt => (
+                          <button key={opt} type="button"
+                            onClick={() => setForm(f => ({ ...f, [parkingKey]: opt }))}
+                            className={`px-3 py-1 rounded-lg text-xs border transition-all ${form[parkingKey] === opt ? 'bg-brand-500 text-white border-brand-500' : 'bg-white text-gray-600 border-gray-200 hover:border-brand-300'}`}>
+                            {opt}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                    {/* Q3 地下室高度 */}
+                    <div>
+                      <p className="text-xs text-gray-500 mb-1.5">地下室高度（選填）</p>
+                      <input value={form[basementKey]} onChange={e => setForm(f => ({ ...f, [basementKey]: e.target.value }))}
+                        placeholder="例：2.1m"
+                        className="w-full border border-gray-200 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-brand-400" />
+                    </div>
+                    {/* Q4 管理室 */}
+                    <div>
+                      <p className="text-xs text-gray-500 mb-1.5">是否有管理室</p>
+                      <div className="flex gap-2">
+                        {['是', '否'].map(opt => (
+                          <button key={opt} type="button"
+                            onClick={() => setForm(f => ({ ...f, [guardKey]: opt }))}
+                            className={`px-3 py-1 rounded-lg text-xs border transition-all ${form[guardKey] === opt ? 'bg-brand-500 text-white border-brand-500' : 'bg-white text-gray-600 border-gray-200 hover:border-brand-300'}`}>
+                            {opt}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
             {/* Consultant */}
             <div className="mt-4 pt-4 border-t border-gray-100">
               <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">服務顧問</h3>
