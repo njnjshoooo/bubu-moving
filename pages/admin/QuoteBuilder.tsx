@@ -272,43 +272,54 @@ export default function QuoteBuilder() {
       };
       let qid = existingQuoteId;
       if (qid) {
-        await supabase.from(T.quotes).update(quoteData).eq('id', qid);
+        const { error: upErr } = await supabase.from(T.quotes).update(quoteData).eq('id', qid);
+        if (upErr) throw upErr;
         await supabase.from(T.quoteItems).delete().eq('quote_id', qid);
         await supabase.from(T.checkedNotes).delete().eq('quote_id', qid);
         await supabase.from(T.staffSchedule).delete().eq('quote_id', qid);
         await supabase.from(T.quoteSchedule).delete().eq('quote_id', qid);
       } else {
-        const { data } = await supabase.from(T.quotes).insert(quoteData).select().single();
+        const { data, error: insErr } = await supabase.from(T.quotes).insert(quoteData).select().single();
+        if (insErr) throw insErr;
         qid = data?.id;
         setExistingQuoteId(qid ?? null);
       }
       if (qid && items.length > 0) {
-        await supabase.from(T.quoteItems).insert(items.map((item, idx) => ({
+        const { error: e } = await supabase.from(T.quoteItems).insert(items.map((item, idx) => ({
           quote_id: qid, category: item.category, name: item.name,
           unit_price: item.unit_price, quantity: item.quantity, sort_order: idx,
         })));
+        if (e) throw e;
       }
       if (qid && staffItems.length > 0) {
-        await supabase.from(T.staffSchedule).insert(staffItems.map((s, idx) => ({
+        const { error: e } = await supabase.from(T.staffSchedule).insert(staffItems.map((s, idx) => ({
           quote_id: qid, work_date: s.work_date, start_time: s.start_time,
           end_time: s.end_time, person_count: s.person_count, unit_price: s.unit_price, sort_order: idx,
         })));
+        if (e) throw e;
       }
       if (qid && scheduleItems.length > 0) {
-        await supabase.from(T.quoteSchedule).insert(scheduleItems.map((s, idx) => ({
+        const { error: e } = await supabase.from(T.quoteSchedule).insert(scheduleItems.map((s, idx) => ({
           quote_id: qid, work_date: s.work_date, start_time: s.start_time,
           end_time: s.end_time, label: s.label, category: s.category, sort_order: idx,
         })));
+        if (e) throw e;
       }
       if (qid && checkedNotes.size > 0) {
-        await supabase.from(T.checkedNotes).insert(
+        const { error: e } = await supabase.from(T.checkedNotes).insert(
           Array.from(checkedNotes).map(nid => ({ quote_id: qid, note_id: nid }))
         );
+        if (e) throw e;
       }
-      setSaveMsg('已儲存');
-      setTimeout(() => setSaveMsg(''), 2000);
+      setSaveMsg('已儲存 ✓');
+      setTimeout(() => setSaveMsg(''), 3000);
       if (redirectToView && qid) navigate(`/admin/quotes/${qid}/view`);
-    } finally { setSaving(false); }
+    } catch (err: any) {
+      const msg: string = err?.message ?? err?.details ?? JSON.stringify(err);
+      alert(`❌ 儲存失敗\n\n${msg}\n\n如果看到「column does not exist」，請先到 Supabase 執行最新的 SQL。`);
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
