@@ -148,8 +148,28 @@ const Navbar: React.FC<NavbarProps> = ({ currentPage, onNavigate }) => {
             )}
           </div>
 
-           {/* Mobile menu button */}
-           <div className="xl:hidden flex items-center">
+           {/* Mobile: login + hamburger */}
+           <div className="xl:hidden flex items-center gap-2">
+            {/* 手機版登入按鈕（漢堡旁邊） */}
+            {user ? (
+              <button
+                onClick={() => navigate(isAdmin ? '/admin' : '/member')}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium bg-brand-500 text-white"
+              >
+                <User size={15} />
+                {isAdmin ? '後台' : '帳號'}
+              </button>
+            ) : (
+              <button
+                onClick={() => navigate('/login')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium border ${
+                  needsWhiteBg ? 'border-brand-400 text-brand-600' : 'border-white/70 text-white'
+                }`}
+              >
+                <LogIn size={15} />
+                登入
+              </button>
+            )}
             <button
               onClick={() => setIsOpen(!isOpen)}
               className={`inline-flex items-center justify-center p-2 rounded-md ${needsWhiteBg ? 'text-gray-700' : 'text-white'}`}
@@ -174,15 +194,33 @@ const Navbar: React.FC<NavbarProps> = ({ currentPage, onNavigate }) => {
                 {link.name}
               </a>
             ))}
-            <div className="pt-4 pb-2 text-center">
-               <a 
-                href="#estimate" 
+            <div className="pt-4 pb-2 flex flex-col items-center gap-3">
+              <a
+                href="#estimate"
                 onClick={(e) => handleLinkClick(e, 'estimate')}
                 className="inline-flex items-center gap-2 bg-brand-600 text-white px-6 py-3 rounded-full font-bold shadow-lg"
               >
                 <Calculator size={18} />
                 立即費用試算
               </a>
+              {/* 手機選單內也顯示登入/帳號 */}
+              {user ? (
+                <button
+                  onClick={() => { setIsOpen(false); navigate(isAdmin ? '/admin' : '/member'); }}
+                  className="inline-flex items-center gap-2 border border-brand-400 text-brand-600 px-6 py-3 rounded-full font-medium"
+                >
+                  <User size={17} />
+                  {isAdmin ? '進入後台管理' : '我的帳號'}
+                </button>
+              ) : (
+                <button
+                  onClick={() => { setIsOpen(false); navigate('/login'); }}
+                  className="inline-flex items-center gap-2 border border-gray-300 text-gray-700 px-6 py-3 rounded-full font-medium"
+                >
+                  <LogIn size={17} />
+                  會員登入
+                </button>
+              )}
             </div>
           </div>
         </div>
