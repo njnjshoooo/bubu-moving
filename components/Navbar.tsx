@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Menu, X, Phone, Truck, Calculator, Package, LogIn, User } from 'lucide-react';
+import { Menu, X, Phone, Truck, Calculator, LogIn, User } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { PageView } from '../App';
 import { useAuth } from '../contexts/AuthContext';
@@ -13,7 +13,9 @@ interface NavbarProps {
 const Navbar: React.FC<NavbarProps> = ({ currentPage, onNavigate }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
-  const { user, isAdmin } = useAuth();
+  const { user, profile } = useAuth();
+  // 只有一般會員才在前台 Navbar 顯示帳號按鈕；後台員工不顯示（入口藏在 Footer）
+  const isMember = !profile || profile.role === 'member';
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -28,7 +30,6 @@ const Navbar: React.FC<NavbarProps> = ({ currentPage, onNavigate }) => {
   const needsWhiteBg = isScrolled || currentPage !== 'home';
   // 判斷文字顏色
   const textColor = needsWhiteBg ? 'text-gray-700 hover:text-brand-600' : 'text-white hover:text-brand-200 drop-shadow-sm';
-  const logoColor = needsWhiteBg ? 'text-brand-600' : 'text-white drop-shadow-md';
   const logoBg = needsWhiteBg ? 'bg-brand-500' : 'bg-white';
   const logoIconColor = needsWhiteBg ? 'text-white' : 'text-brand-600';
 
@@ -129,47 +130,57 @@ const Navbar: React.FC<NavbarProps> = ({ currentPage, onNavigate }) => {
               <Phone size={18} />
               <span>0912-345-678</span>
             </a>
-            {user ? (
+            {/* 桌面版：只對一般會員顯示；後台員工不顯示 */}
+            {user && isMember ? (
               <button
-                onClick={() => navigate(isAdmin ? '/admin' : '/member')}
-                className={`flex items-center gap-1.5 font-medium text-base transition-colors ${textColor}`}
+                onClick={() => navigate('/member')}
+                className="flex items-center gap-2 bg-white/20 hover:bg-white/30 border border-white/40 text-white px-4 py-2 rounded-full font-medium text-sm transition-all backdrop-blur-sm"
+                style={needsWhiteBg ? { background: 'rgb(124 58 237 / 0.08)', borderColor: 'rgb(124 58 237 / 0.3)', color: '#7c3aed' } : {}}
               >
                 <User size={16} />
-                {isAdmin ? '後台管理' : '我的帳號'}
+                我的帳號
               </button>
-            ) : (
+            ) : !user ? (
               <button
                 onClick={() => navigate('/login')}
-                className={`flex items-center gap-1.5 font-medium text-base transition-colors ${textColor}`}
+                className={`flex items-center gap-2 px-5 py-2 rounded-full font-semibold text-sm transition-all transform hover:scale-105 shadow-md ${
+                  needsWhiteBg
+                    ? 'bg-brand-500 hover:bg-brand-600 text-white'
+                    : 'bg-white hover:bg-brand-50 text-brand-600'
+                }`}
               >
                 <LogIn size={16} />
-                登入
+                會員登入
               </button>
-            )}
+            ) : null}
           </div>
 
            {/* Mobile: login + hamburger */}
            <div className="xl:hidden flex items-center gap-2">
-            {/* 手機版登入按鈕（漢堡旁邊） */}
-            {user ? (
+            {/* 手機版登入按鈕（漢堡旁邊）：只對一般會員顯示；後台員工不顯示 */}
+            {user && isMember ? (
               <button
-                onClick={() => navigate(isAdmin ? '/admin' : '/member')}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium bg-brand-500 text-white"
+                onClick={() => navigate('/member')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium ${
+                  needsWhiteBg ? 'bg-brand-500 text-white' : 'bg-white/20 border border-white/60 text-white'
+                }`}
               >
                 <User size={15} />
-                {isAdmin ? '後台' : '帳號'}
+                帳號
               </button>
-            ) : (
+            ) : !user ? (
               <button
                 onClick={() => navigate('/login')}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium border ${
-                  needsWhiteBg ? 'border-brand-400 text-brand-600' : 'border-white/70 text-white'
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-semibold ${
+                  needsWhiteBg
+                    ? 'bg-brand-500 text-white'
+                    : 'bg-white text-brand-600'
                 }`}
               >
                 <LogIn size={15} />
-                登入
+                會員登入
               </button>
-            )}
+            ) : null}
             <button
               onClick={() => setIsOpen(!isOpen)}
               className={`inline-flex items-center justify-center p-2 rounded-md ${needsWhiteBg ? 'text-gray-700' : 'text-white'}`}
@@ -203,24 +214,24 @@ const Navbar: React.FC<NavbarProps> = ({ currentPage, onNavigate }) => {
                 <Calculator size={18} />
                 立即費用試算
               </a>
-              {/* 手機選單內也顯示登入/帳號 */}
-              {user ? (
+              {/* 手機選單內也顯示登入/帳號：只對一般會員顯示；後台員工不顯示 */}
+              {user && isMember ? (
                 <button
-                  onClick={() => { setIsOpen(false); navigate(isAdmin ? '/admin' : '/member'); }}
-                  className="inline-flex items-center gap-2 border border-brand-400 text-brand-600 px-6 py-3 rounded-full font-medium"
+                  onClick={() => { setIsOpen(false); navigate('/member'); }}
+                  className="inline-flex items-center gap-2 bg-brand-500 text-white px-6 py-3 rounded-full font-semibold shadow-md"
                 >
                   <User size={17} />
-                  {isAdmin ? '進入後台管理' : '我的帳號'}
+                  我的帳號
                 </button>
-              ) : (
+              ) : !user ? (
                 <button
                   onClick={() => { setIsOpen(false); navigate('/login'); }}
-                  className="inline-flex items-center gap-2 border border-gray-300 text-gray-700 px-6 py-3 rounded-full font-medium"
+                  className="inline-flex items-center gap-2 bg-brand-500 text-white px-6 py-3 rounded-full font-semibold shadow-md"
                 >
                   <LogIn size={17} />
                   會員登入
                 </button>
-              )}
+              ) : null}
             </div>
           </div>
         </div>
