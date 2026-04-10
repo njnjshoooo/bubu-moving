@@ -3,7 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import { Printer, ArrowLeft, Edit, Send } from 'lucide-react';
 import { supabase, Quote, NoteTemplate, StaffScheduleItem, QuoteScheduleItem, T } from '../../lib/supabase';
 
-const CATEGORIES = ['搬家車趟費', '打包計時人員', '包材費'];
+const CATEGORIES = ['搬家車趟費', '計時人員', '包材費'];
 
 const CAT_COLORS: Record<string, string> = {
   '搬家': '#3B82F6',
@@ -19,8 +19,31 @@ const toMin = (t: string) => {
 
 const fmtTime = (t: string) => t.slice(0, 5);
 
-const calcHours = (start: string, end: string) =>
-  Math.max(0, (toMin(end) - toMin(start)) / 60);
+const calcHours = (start: string, end: string, breakHours = 0) =>
+  Math.max(0, (toMin(end) - toMin(start)) / 60 - breakHours);
+
+// ── Gantt row packing: put non-overlapping items on the same row ──────────────
+const packIntoRows = (items: QuoteScheduleItem[]): QuoteScheduleItem[][] => {
+  const sorted = [...items].sort((a, b) => toMin(a.start_time) - toMin(b.start_time));
+  const rows: QuoteScheduleItem[][] = [];
+  for (const item of sorted) {
+    const itemStart = toMin(item.start_time);
+    const itemEnd = toMin(item.end_time);
+    let placed = false;
+    for (const row of rows) {
+      const hasOverlap = row.some(r =>
+        itemStart < toMin(r.end_time) && itemEnd > toMin(r.start_time)
+      );
+      if (!hasOverlap) {
+        row.push(item);
+        placed = true;
+        break;
+      }
+    }
+    if (!placed) rows.push([item]);
+  }
+  return rows;
+};
 
 export default function QuoteView() {
   const { quoteId } = useParams();
@@ -28,6 +51,7 @@ export default function QuoteView() {
   const [checkedNotes, setCheckedNotes] = useState<NoteTemplate[]>([]);
   const [staffItems, setStaffItems] = useState<StaffScheduleItem[]>([]);
   const [scheduleItems, setScheduleItems] = useState<QuoteScheduleItem[]>([]);
+  const [remarkNotes, setRemarkNotes] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const printRef = useRef<HTMLDivElement>(null);
@@ -45,6 +69,10 @@ export default function QuoteView() {
           .filter(Boolean)
           .sort((a: any, b: any) => a.sort_order - b.sort_order);
         setCheckedNotes(notes);
+        try {
+          const parsed = JSON.parse(data.remark_notes ?? '[]');
+          setRemarkNotes(Array.isArray(parsed) ? parsed.filter((s: string) => s.trim()) : []);
+        } catch { setRemarkNotes([]); }
       }
 
       const { data: staffData } = await supabase.from(T.staffSchedule)
@@ -84,11 +112,16 @@ export default function QuoteView() {
   if (!quote) return <div className="p-8 text-center text-gray-400">找不到此報價單</div>;
 
   const today = new Date().toLocaleDateString('zh-TW');
-  const catItems = (cat: string) => (quote.quote_items ?? []).filter(i => i.category === cat);
+
+  // Only non-計時人員 items come from quote_items; staff costs from staffItems
+  const catItems = (cat: string) => {
+    if (cat === '計時人員') return [];
+    return (quote.quote_items ?? []).filter(i => i.category === cat || (cat === '計時人員' && i.category === '打包計時人員'));
+  };
   const catTotal = (cat: string) => catItems(cat).reduce((s, i) => s + i.unit_price * i.quantity, 0);
 
-  // Staff subtotal
-  const staffTotal = staffItems.reduce((sum, s) => sum + calcHours(s.start_time, s.end_time) * s.person_count * s.unit_price, 0);
+  const staffTotal = staffItems.reduce((sum, s) =>
+    sum + calcHours(s.start_time, s.end_time, s.break_hours ?? 0) * s.person_count * s.unit_price, 0);
 
   // Group schedule items by date for Gantt
   const schedByDate = scheduleItems.reduce((acc, s) => {
@@ -211,14 +244,14 @@ export default function QuoteView() {
         {/* Items by Category */}
         {CATEGORIES.map(cat => {
           const cItems = catItems(cat);
-          const showStaff = cat === '打包計時人員' && hasStaff;
+          const showStaff = cat === '計時人員' && hasStaff;
           if (cItems.length === 0 && !showStaff) return null;
-          const sectionTotal = catTotal(cat) + (cat === '打包計時人員' ? Math.round(staffTotal) : 0);
+          const sectionTotal = catTotal(cat) + (cat === '計時人員' ? Math.round(staffTotal) : 0);
           return (
             <div key={cat} className="mb-6">
               <h3 className="font-semibold text-gray-800 bg-brand-50 text-brand-800 px-4 py-2 rounded-t-xl border border-brand-100 text-sm">{cat}</h3>
 
-              {/* Product line items */}
+              {/* Product line items (non-計時人員) */}
               {cItems.length > 0 && (
                 <table className="w-full text-sm border border-t-0 border-gray-100 overflow-hidden">
                   <thead>
@@ -242,44 +275,33 @@ export default function QuoteView() {
                 </table>
               )}
 
-              {/* Staff schedule items (shown under 打包計時人員) */}
+              {/* Staff schedule items (計時人員) */}
               {showStaff && (
-                <table className={`w-full text-sm border ${cItems.length > 0 ? 'border-t-0' : 'border-t-0'} border-gray-100 overflow-hidden`}>
-                  {cItems.length === 0 && (
-                    <thead>
-                      <tr className="bg-gray-50">
-                        <th className="text-left px-4 py-2 text-xs text-gray-500 font-medium">日期</th>
-                        <th className="text-left px-4 py-2 text-xs text-gray-500 font-medium">時段</th>
-                        <th className="text-center px-4 py-2 text-xs text-gray-500 font-medium">人數</th>
-                        <th className="text-center px-4 py-2 text-xs text-gray-500 font-medium">工時</th>
-                        <th className="text-right px-4 py-2 text-xs text-gray-500 font-medium">時薪/人</th>
-                        <th className="text-right px-4 py-2 text-xs text-gray-500 font-medium">小計</th>
-                      </tr>
-                    </thead>
-                  )}
-                  {cItems.length > 0 && (
-                    <thead>
-                      <tr className="bg-green-50/50">
-                        <th colSpan={6} className="text-left px-4 py-1.5 text-xs text-green-700 font-medium">計時人員工時明細</th>
-                      </tr>
-                      <tr className="bg-gray-50">
-                        <th className="text-left px-4 py-2 text-xs text-gray-500 font-medium">日期</th>
-                        <th className="text-left px-4 py-2 text-xs text-gray-500 font-medium">時段</th>
-                        <th className="text-center px-4 py-2 text-xs text-gray-500 font-medium">人數</th>
-                        <th className="text-center px-4 py-2 text-xs text-gray-500 font-medium">工時</th>
-                        <th className="text-right px-4 py-2 text-xs text-gray-500 font-medium">時薪/人</th>
-                        <th className="text-right px-4 py-2 text-xs text-gray-500 font-medium">小計</th>
-                      </tr>
-                    </thead>
-                  )}
+                <table className="w-full text-sm border border-t-0 border-gray-100 overflow-hidden">
+                  <thead>
+                    <tr className="bg-gray-50">
+                      <th className="text-left px-4 py-2 text-xs text-gray-500 font-medium">品項</th>
+                      <th className="text-left px-4 py-2 text-xs text-gray-500 font-medium">日期</th>
+                      <th className="text-left px-4 py-2 text-xs text-gray-500 font-medium">時段</th>
+                      <th className="text-center px-4 py-2 text-xs text-gray-500 font-medium">人數</th>
+                      <th className="text-center px-4 py-2 text-xs text-gray-500 font-medium">工時</th>
+                      <th className="text-right px-4 py-2 text-xs text-gray-500 font-medium">時薪/人</th>
+                      <th className="text-right px-4 py-2 text-xs text-gray-500 font-medium">小計</th>
+                    </tr>
+                  </thead>
                   <tbody>
                     {staffItems.map((s, i) => {
-                      const hours = calcHours(s.start_time, s.end_time);
+                      const bh = s.break_hours ?? 0;
+                      const hours = calcHours(s.start_time, s.end_time, bh);
                       const sub = Math.round(hours * s.person_count * s.unit_price);
                       return (
                         <tr key={s.id} className={i % 2 === 0 ? '' : 'bg-gray-50/50'}>
+                          <td className="px-4 py-2.5 text-gray-700 font-medium">{s.item_name ?? '整聊師'}</td>
                           <td className="px-4 py-2.5 text-gray-700">{s.work_date}</td>
-                          <td className="px-4 py-2.5 text-gray-600">{fmtTime(s.start_time)} – {fmtTime(s.end_time)}</td>
+                          <td className="px-4 py-2.5 text-gray-600">
+                            {fmtTime(s.start_time)} – {fmtTime(s.end_time)}
+                            {bh > 0 && <span className="text-xs text-gray-400 ml-1">（休息 {bh}h）</span>}
+                          </td>
                           <td className="px-4 py-2.5 text-center text-gray-600">{s.person_count} 人</td>
                           <td className="px-4 py-2.5 text-center text-gray-600">{hours.toFixed(1)} h</td>
                           <td className="px-4 py-2.5 text-right text-gray-600">NT${s.unit_price.toLocaleString()}</td>
@@ -288,6 +310,11 @@ export default function QuoteView() {
                       );
                     })}
                   </tbody>
+                  <tfoot>
+                    <tr>
+                      <td colSpan={7} className="px-4 py-1 text-right text-xs text-gray-400">※ 休息時間不計費</td>
+                    </tr>
+                  </tfoot>
                 </table>
               )}
 
@@ -367,20 +394,23 @@ export default function QuoteView() {
               </tbody>
             </table>
 
-            {/* ── CSS Gantt Chart ── */}
+            {/* ── CSS Gantt Chart (packed rows) ── */}
             <h3 className="font-semibold text-gray-800 mb-3 text-sm">時程甘特圖</h3>
             <div className="space-y-4">
               {scheduleDates.map(date => {
                 const dayItems = schedByDate[date];
-                const mins = dayItems.map(s => toMin(s.start_time));
-                const maxMins = dayItems.map(s => toMin(s.end_time));
-                const dayStart = Math.min(...mins);
-                const dayEnd = Math.max(...maxMins);
-                const span = dayEnd - dayStart || 60;
+                const allMins = dayItems.flatMap(s => [toMin(s.start_time), toMin(s.end_time)]);
+                const dayStart = Math.min(...allMins);
+                const dayEnd = Math.max(...allMins);
+                const span = Math.max(dayEnd - dayStart, 60);
 
                 // Time labels (every hour)
                 const hourLabels: number[] = [];
                 for (let m = Math.floor(dayStart / 60) * 60; m <= dayEnd; m += 60) hourLabels.push(m);
+
+                // Pack non-overlapping items into same row
+                const packedRows = packIntoRows(dayItems);
+                const totalHeight = packedRows.length * 32 + 8;
 
                 return (
                   <div key={date}>
@@ -391,32 +421,35 @@ export default function QuoteView() {
                         const pct = ((m - dayStart) / span) * 100;
                         if (pct < 0 || pct > 100) return null;
                         return (
-                          <span key={m} className="absolute text-xs text-gray-400 -translate-x-1/2" style={{ left: `${pct}%` }}>
+                          <span key={m} className="absolute text-xs text-gray-400 -translate-x-1/2"
+                            style={{ left: `${pct}%` }}>
                             {String(Math.floor(m / 60)).padStart(2, '0')}:{String(m % 60).padStart(2, '0')}
                           </span>
                         );
                       })}
                     </div>
-                    {/* Gantt rows */}
-                    <div className="relative bg-gray-100 rounded-lg overflow-hidden" style={{ height: `${dayItems.length * 32 + 8}px` }}>
-                      {dayItems.map((s, i) => {
-                        const left = ((toMin(s.start_time) - dayStart) / span) * 100;
-                        const width = ((toMin(s.end_time) - toMin(s.start_time)) / span) * 100;
-                        const color = CAT_COLORS[s.category] ?? '#6B7280';
-                        return (
-                          <div key={s.id}
-                            className="absolute flex items-center px-2 rounded text-white text-xs font-medium overflow-hidden whitespace-nowrap"
-                            style={{
-                              left: `${left}%`, width: `${width}%`,
-                              top: `${i * 32 + 4}px`, height: '26px',
-                              backgroundColor: color,
-                            }}
-                            title={`${fmtTime(s.start_time)} – ${fmtTime(s.end_time)} ${s.label}`}
-                          >
-                            {s.label}
-                          </div>
-                        );
-                      })}
+                    {/* Gantt rows (packed) */}
+                    <div className="relative bg-gray-100 rounded-lg overflow-hidden"
+                      style={{ height: `${totalHeight}px` }}>
+                      {packedRows.map((row, rowIdx) =>
+                        row.map(s => {
+                          const left = ((toMin(s.start_time) - dayStart) / span) * 100;
+                          const width = Math.max(((toMin(s.end_time) - toMin(s.start_time)) / span) * 100, 2);
+                          const color = CAT_COLORS[s.category] ?? '#6B7280';
+                          return (
+                            <div key={s.id}
+                              className="absolute flex items-center px-2 rounded text-white text-xs font-medium overflow-hidden whitespace-nowrap"
+                              style={{
+                                left: `${left}%`, width: `${width}%`,
+                                top: `${rowIdx * 32 + 4}px`, height: '26px',
+                                backgroundColor: color,
+                              }}
+                              title={`${fmtTime(s.start_time)} – ${fmtTime(s.end_time)} ${s.label}`}>
+                              {s.label}
+                            </div>
+                          );
+                        })
+                      )}
                     </div>
                   </div>
                 );
@@ -431,6 +464,21 @@ export default function QuoteView() {
                 </div>
               ))}
             </div>
+          </div>
+        )}
+
+        {/* ── 備註區 ── */}
+        {remarkNotes.length > 0 && (
+          <div className="mt-8 border-t border-gray-100 pt-6">
+            <h3 className="font-semibold text-gray-800 mb-3 text-sm">備註</h3>
+            <ul className="space-y-1.5">
+              {remarkNotes.map((note, i) => (
+                <li key={i} className="flex gap-2 text-xs text-gray-600">
+                  <span className="flex-shrink-0">•</span>
+                  <span>{note}</span>
+                </li>
+              ))}
+            </ul>
           </div>
         )}
 
@@ -453,7 +501,7 @@ export default function QuoteView() {
         <div className="mt-10 pt-6 border-t border-gray-200 grid grid-cols-2 gap-10">
           <div>
             <p className="text-xs text-gray-500 mb-1">客戶簽認</p>
-            <p className="text-xs text-gray-400 mb-8">本人已詳閱報價內容及注意事項，同意以上條件。</p>
+            <p className="text-xs text-gray-400 mb-8">本人已詳閱報價內容及注意事項，同意以上條件。付款視同同意合約內容。</p>
             <div className="border-b border-gray-400 w-full" />
             <p className="text-xs text-gray-400 mt-1 text-center">簽名 ／ 日期</p>
           </div>

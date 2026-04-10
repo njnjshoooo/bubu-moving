@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
-import { Plus, Trash2, ChevronDown, ChevronUp, Save, Eye, ArrowLeft, Users, CalendarDays, UserCircle } from 'lucide-react';
+import { Plus, Trash2, ChevronDown, ChevronUp, Save, Eye, ArrowLeft, Users, CalendarDays, UserCircle, CheckSquare, Square, AlignLeft } from 'lucide-react';
 import { supabase, NoteTemplate, T } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -13,13 +13,12 @@ const PRODUCT_CATALOG: Record<string, { name: string; price: number }[]> = {
     { name: '鐵架拆裝費', price: 0 },
     { name: '廢棄物清運', price: 11000 },
     { name: '另址搬運費', price: 600 },
-    { name: '搬工（計時）', price: 1900 },
     { name: '鋼琴搬運', price: 0 },
     { name: '冰箱交換費', price: 1800 },
   ],
-  '打包計時人員': [
-    { name: '整聊師（時薪制）', price: 600 },
-    { name: '加時費用', price: 650 },
+  '計時人員': [
+    { name: '搬工', price: 1900 },
+    { name: '整聊師', price: 600 },
   ],
   '包材費': [
     { name: '大紙箱', price: 80 },
@@ -38,6 +37,7 @@ const PRODUCT_CATALOG: Record<string, { name: string; price: number }[]> = {
 
 const CATEGORIES = Object.keys(PRODUCT_CATALOG) as Array<keyof typeof PRODUCT_CATALOG>;
 const SCHEDULE_CATEGORIES = ['搬家', '打包', '清運', '其他'];
+const BREAK_OPTIONS = [0, 0.5, 1, 1.5, 2];
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 interface LineItem {
@@ -51,9 +51,11 @@ interface LineItem {
 
 interface StaffItemForm {
   id?: string;
+  item_name: string;
   work_date: string;
   start_time: string;
   end_time: string;
+  break_hours: number;
   person_count: number;
   unit_price: number;
 }
@@ -88,17 +90,66 @@ interface QuoteForm {
   internal_notes: string;
 }
 
+// ─── 24h Time Input Component ─────────────────────────────────────────────────
+const TimeInput: React.FC<{
+  value: string;
+  onChange: (v: string) => void;
+  className?: string;
+}> = ({ value, onChange, className = '' }) => {
+  const parts = (value || '00:00').split(':');
+  const h = parseInt(parts[0]) || 0;
+  const m = parseInt(parts[1]) || 0;
+  const validMinutes = [0, 15, 30, 45];
+  // Ensure m is in valid range, otherwise add it to the list
+  const minuteOptions = validMinutes.includes(m) ? validMinutes : [...validMinutes, m].sort((a, b) => a - b);
+
+  const setH = (newH: number) =>
+    onChange(`${String(newH).padStart(2, '0')}:${String(m).padStart(2, '0')}`);
+  const setM = (newM: number) =>
+    onChange(`${String(h).padStart(2, '0')}:${String(newM).padStart(2, '0')}`);
+
+  return (
+    <div className={`inline-flex items-center gap-0.5 bg-white border border-gray-200 rounded-lg px-1.5 py-1 ${className}`}>
+      <select value={h} onChange={e => setH(+e.target.value)}
+        className="text-xs bg-transparent focus:outline-none cursor-pointer">
+        {Array.from({ length: 24 }, (_, i) => (
+          <option key={i} value={i}>{String(i).padStart(2, '0')}</option>
+        ))}
+      </select>
+      <span className="text-xs text-gray-400 select-none">:</span>
+      <select value={m} onChange={e => setM(+e.target.value)}
+        className="text-xs bg-transparent focus:outline-none cursor-pointer">
+        {minuteOptions.map(v => (
+          <option key={v} value={v}>{String(v).padStart(2, '0')}</option>
+        ))}
+      </select>
+    </div>
+  );
+};
+
 // ─── Helpers ─────────────────────────────────────────────────────────────────
-const calcHours = (start: string, end: string): number => {
+const calcHours = (start: string, end: string, breakHours = 0): number => {
   const [sh, sm] = start.split(':').map(Number);
   const [eh, em] = end.split(':').map(Number);
-  return Math.max(0, (eh * 60 + em - sh * 60 - sm) / 60);
+  return Math.max(0, (eh * 60 + em - sh * 60 - sm) / 60 - breakHours);
 };
 
 const staffSubtotal = (items: StaffItemForm[]) =>
-  items.reduce((sum, i) => sum + calcHours(i.start_time, i.end_time) * i.person_count * i.unit_price, 0);
+  items.reduce((sum, i) => sum + calcHours(i.start_time, i.end_time, i.break_hours) * i.person_count * i.unit_price, 0);
 
 const TODAY = new Date().toISOString().split('T')[0];
+
+// ─── Save Toast ───────────────────────────────────────────────────────────────
+const SaveToast: React.FC<{ status: 'success' | 'error' | null }> = ({ status }) => {
+  if (!status) return null;
+  return (
+    <div className={`fixed bottom-6 right-6 z-50 flex items-center gap-2 px-5 py-3 rounded-2xl shadow-xl text-sm font-semibold transition-all ${
+      status === 'success' ? 'bg-green-500 text-white' : 'bg-red-500 text-white'
+    }`}>
+      {status === 'success' ? '✓ 儲存完成' : '✕ 尚未儲存，請再試一次'}
+    </div>
+  );
+};
 
 // ─── Component ───────────────────────────────────────────────────────────────
 export default function QuoteBuilder() {
@@ -119,12 +170,18 @@ export default function QuoteBuilder() {
   const [scheduleItems, setScheduleItems] = useState<ScheduleItemForm[]>([]);
   const [notes, setNotes] = useState<NoteTemplate[]>([]);
   const [checkedNotes, setCheckedNotes] = useState<Set<string>>(new Set());
-  const [expandedCats, setExpandedCats] = useState<Record<string, boolean>>({ '搬家車趟費': true, _staff: true, _schedule: true, '打包計時人員': true });
+  const [remarkNotes, setRemarkNotes] = useState<string[]>([]);
+  const [expandedCats, setExpandedCats] = useState<Record<string, boolean>>({
+    '搬家車趟費': true, _staff: true, _schedule: true, '計時人員': true,
+  });
   const [saving, setSaving] = useState(false);
   const [quoteNumber, setQuoteNumber] = useState('');
   const [existingQuoteId, setExistingQuoteId] = useState<string | null>(null);
   const [quoteStatus, setQuoteStatus] = useState<string>('草稿');
-  const [saveMsg, setSaveMsg] = useState('');
+  const [saveStatus, setSaveStatus] = useState<'success' | 'error' | null>(null);
+
+  // Custom item inline form state: { category, name, price, qty }
+  const [customForm, setCustomForm] = useState<{ category: string; name: string; price: string; qty: string } | null>(null);
 
   // Drag-and-drop refs
   const dragStaffIdx = useRef<number | null>(null);
@@ -150,10 +207,8 @@ export default function QuoteBuilder() {
     }
   }, [bookingId]);
 
-  // Auto-fill consultant from logged-in user (new quote only)
   useEffect(() => {
     if (quoteId || !profile) return;
-    // Try to find consultant record linked to current user
     supabase.from(T.consultants).select('display_name, phone')
       .eq('user_id', profile.id).eq('is_active', true).maybeSingle()
       .then(({ data }) => {
@@ -166,7 +221,7 @@ export default function QuoteBuilder() {
   useEffect(() => {
     if (!quoteId) {
       const now = new Date();
-      setQuoteNumber(`QUO-${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}-${String(now.getHours()).padStart(2,'0')}${String(now.getMinutes()).padStart(2,'0')}${String(now.getSeconds()).padStart(2,'0')}`);
+      setQuoteNumber(`QUO-${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}-${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}${String(now.getSeconds()).padStart(2, '0')}`);
       return;
     }
     const load = async () => {
@@ -192,26 +247,36 @@ export default function QuoteBuilder() {
         consultant_phone: data.consultant_phone ?? '',
         internal_notes: data.internal_notes ?? '',
       });
+      // Load remark_notes (stored as JSON array string)
+      try {
+        const parsed = JSON.parse(data.remark_notes ?? '[]');
+        setRemarkNotes(Array.isArray(parsed) ? parsed : []);
+      } catch { setRemarkNotes([]); }
+
       setItems((data.quote_items ?? []).map((item: any) => ({
         id: item.id, category: item.category, name: item.name,
         unit_price: item.unit_price, quantity: item.quantity, sort_order: item.sort_order,
       })));
       setCheckedNotes(new Set((data.quote_checked_notes ?? []).map((n: any) => n.note_id)));
 
-      // Load staff schedule items
       const { data: staffData } = await supabase.from(T.staffSchedule)
         .select('*').eq('quote_id', quoteId).order('sort_order');
       if (staffData) setStaffItems(staffData.map((s: any) => ({
-        id: s.id, work_date: s.work_date, start_time: s.start_time.slice(0,5),
-        end_time: s.end_time.slice(0,5), person_count: s.person_count, unit_price: s.unit_price,
+        id: s.id,
+        item_name: s.item_name ?? '整聊師',
+        work_date: s.work_date,
+        start_time: s.start_time.slice(0, 5),
+        end_time: s.end_time.slice(0, 5),
+        break_hours: s.break_hours ?? 0,
+        person_count: s.person_count,
+        unit_price: s.unit_price,
       })));
 
-      // Load quote schedule items
       const { data: schedData } = await supabase.from(T.quoteSchedule)
         .select('*').eq('quote_id', quoteId).order('sort_order');
       if (schedData) setScheduleItems(schedData.map((s: any) => ({
-        id: s.id, work_date: s.work_date, start_time: s.start_time.slice(0,5),
-        end_time: s.end_time.slice(0,5), label: s.label, category: s.category,
+        id: s.id, work_date: s.work_date, start_time: s.start_time.slice(0, 5),
+        end_time: s.end_time.slice(0, 5), label: s.label, category: s.category,
       })));
     };
     load();
@@ -219,6 +284,11 @@ export default function QuoteBuilder() {
 
   // ── Line Items ───────────────────────────────────────────────────────────────
   const addItem = (category: string, productName: string, price: number) => {
+    // 計時人員 chips add staff schedule entries, not line items
+    if (category === '計時人員') {
+      addStaffItem(productName, price);
+      return;
+    }
     const existing = items.findIndex(i => i.category === category && i.name === productName);
     if (existing >= 0) {
       setItems(prev => prev.map((item, idx) => idx === existing ? { ...item, quantity: item.quantity + 1 } : item));
@@ -226,27 +296,52 @@ export default function QuoteBuilder() {
       setItems(prev => [...prev, { category, name: productName, unit_price: price, quantity: 1, sort_order: prev.length }]);
     }
   };
+
+  const addCustomItem = () => {
+    if (!customForm) return;
+    const price = parseFloat(customForm.price) || 0;
+    const qty = parseInt(customForm.qty) || 1;
+    setItems(prev => [...prev, {
+      category: customForm.category, name: customForm.name || '自訂品項',
+      unit_price: price, quantity: qty, sort_order: prev.length,
+    }]);
+    setCustomForm(null);
+  };
+
   const updateItem = (idx: number, field: 'quantity' | 'unit_price' | 'name', value: number | string) =>
     setItems(prev => prev.map((item, i) => i === idx ? { ...item, [field]: value } : item));
   const removeItem = (idx: number) => setItems(prev => prev.filter((_, i) => i !== idx));
   const toggleNote = (id: string) => setCheckedNotes(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
+  const toggleAllNotes = () => {
+    if (checkedNotes.size === notes.length) {
+      setCheckedNotes(new Set());
+    } else {
+      setCheckedNotes(new Set(notes.map(n => n.id)));
+    }
+  };
 
   // ── Staff Items ──────────────────────────────────────────────────────────────
-  const addStaffItem = () => setStaffItems(prev => [...prev, {
-    work_date: TODAY, start_time: '09:00', end_time: '17:00', person_count: 2, unit_price: 600,
-  }]);
+  const addStaffItem = (itemName = '整聊師', defaultPrice = 600) =>
+    setStaffItems(prev => [...prev, {
+      item_name: itemName,
+      work_date: TODAY, start_time: '09:00', end_time: '17:00',
+      break_hours: 0, person_count: 2, unit_price: defaultPrice,
+    }]);
+
   const updateStaffItem = (idx: number, field: keyof StaffItemForm, value: string | number) =>
     setStaffItems(prev => prev.map((item, i) => i === idx ? { ...item, [field]: value } : item));
   const removeStaffItem = (idx: number) => setStaffItems(prev => prev.filter((_, i) => i !== idx));
 
   const handleStaffDragStart = (idx: number) => { dragStaffIdx.current = idx; };
-  const handleStaffDragOver = (e: React.DragEvent, idx: number) => { e.preventDefault(); dragStaffIdx.current !== null && (dragStaffIdx.current !== idx) && (() => {
+  const handleStaffDragOver = (e: React.DragEvent, idx: number) => {
+    e.preventDefault();
+    if (dragStaffIdx.current === null || dragStaffIdx.current === idx) return;
     const next = [...staffItems];
     const [moved] = next.splice(dragStaffIdx.current!, 1);
     next.splice(idx, 0, moved);
     dragStaffIdx.current = idx;
     setStaffItems(next);
-  })(); };
+  };
 
   // ── Schedule Items ───────────────────────────────────────────────────────────
   const addScheduleItem = () => setScheduleItems(prev => [...prev, {
@@ -267,20 +362,37 @@ export default function QuoteBuilder() {
     setScheduleItems(next);
   };
 
+  // ── Remark Notes ──────────────────────────────────────────────────────────────
+  const addRemarkNote = () => setRemarkNotes(prev => [...prev, '']);
+  const updateRemarkNote = (idx: number, val: string) =>
+    setRemarkNotes(prev => prev.map((n, i) => i === idx ? val : n));
+  const removeRemarkNote = (idx: number) =>
+    setRemarkNotes(prev => prev.filter((_, i) => i !== idx));
+
   // ── Subtotals ─────────────────────────────────────────────────────────────────
-  const lineItemSubtotal = items.reduce((sum, i) => sum + i.unit_price * i.quantity, 0);
+  // 計時人員 costs come from staffItems only (not line items)
+  const lineItemSubtotal = items
+    .filter(i => i.category !== '計時人員')
+    .reduce((sum, i) => sum + i.unit_price * i.quantity, 0);
   const staffTotal = staffSubtotal(staffItems);
   const subtotal = lineItemSubtotal + staffTotal;
   const balance = Math.max(0, subtotal - deposit);
 
   const catItems = (cat: string) => items.filter(i => i.category === cat);
-  const catTotal = (cat: string) => catItems(cat).reduce((s, i) => s + i.unit_price * i.quantity, 0);
+  const catTotal = (cat: string) => {
+    if (cat === '計時人員') return Math.round(staffTotal);
+    return catItems(cat).reduce((s, i) => s + i.unit_price * i.quantity, 0);
+  };
 
   // ── Save ─────────────────────────────────────────────────────────────────────
+  const showToast = (status: 'success' | 'error') => {
+    setSaveStatus(status);
+    setTimeout(() => setSaveStatus(null), 3000);
+  };
+
   const handleSave = async (redirectToView = false) => {
     setSaving(true);
     try {
-      // 若是顧問建立，自動關聯 consultant_id
       let consultantId: string | null = null;
       if (profile && profile.role === 'consultant') {
         const { data: cData } = await supabase.from(T.consultants)
@@ -292,6 +404,7 @@ export default function QuoteBuilder() {
         quote_number: quoteNumber, booking_id: bookingId ?? null,
         ...form, subtotal, total: subtotal, deposit,
         consultant_id: consultantId,
+        remark_notes: JSON.stringify(remarkNotes.filter(n => n.trim())),
         status: (quoteStatus === '草稿' ? '草稿' : quoteStatus) as any,
       };
       let qid = existingQuoteId;
@@ -308,8 +421,10 @@ export default function QuoteBuilder() {
         qid = data?.id;
         setExistingQuoteId(qid ?? null);
       }
-      if (qid && items.length > 0) {
-        const { error: e } = await supabase.from(T.quoteItems).insert(items.map((item, idx) => ({
+      // Save line items (exclude 計時人員 items – cost is in staffSchedule)
+      const lineItemsToSave = items.filter(i => i.category !== '計時人員');
+      if (qid && lineItemsToSave.length > 0) {
+        const { error: e } = await supabase.from(T.quoteItems).insert(lineItemsToSave.map((item, idx) => ({
           quote_id: qid, category: item.category, name: item.name,
           unit_price: item.unit_price, quantity: item.quantity, sort_order: idx,
         })));
@@ -317,8 +432,10 @@ export default function QuoteBuilder() {
       }
       if (qid && staffItems.length > 0) {
         const { error: e } = await supabase.from(T.staffSchedule).insert(staffItems.map((s, idx) => ({
-          quote_id: qid, work_date: s.work_date, start_time: s.start_time,
-          end_time: s.end_time, person_count: s.person_count, unit_price: s.unit_price, sort_order: idx,
+          quote_id: qid, item_name: s.item_name, work_date: s.work_date,
+          start_time: s.start_time, end_time: s.end_time,
+          break_hours: s.break_hours, person_count: s.person_count,
+          unit_price: s.unit_price, sort_order: idx,
         })));
         if (e) throw e;
       }
@@ -335,12 +452,12 @@ export default function QuoteBuilder() {
         );
         if (e) throw e;
       }
-      setSaveMsg('已儲存 ✓');
-      setTimeout(() => setSaveMsg(''), 3000);
+      showToast('success');
       if (redirectToView && qid) navigate(`/admin/quotes/${qid}/view`);
     } catch (err: any) {
+      showToast('error');
       const msg: string = err?.message ?? err?.details ?? JSON.stringify(err);
-      alert(`❌ 儲存失敗\n\n${msg}\n\n如果看到「column does not exist」，請先到 Supabase 執行最新的 SQL。`);
+      console.error('儲存失敗：', msg);
     } finally {
       setSaving(false);
     }
@@ -348,6 +465,8 @@ export default function QuoteBuilder() {
 
   return (
     <div className="space-y-5">
+      <SaveToast status={saveStatus} />
+
       {/* ── Header ── */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div className="flex items-center gap-3">
@@ -360,7 +479,6 @@ export default function QuoteBuilder() {
           </div>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
-          {saveMsg && <span className="text-sm text-green-600 font-medium">{saveMsg}</span>}
           <button onClick={() => handleSave(false)} disabled={saving}
             className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 text-sm rounded-xl transition-all disabled:opacity-60">
             <Save size={15} />儲存
@@ -426,7 +544,6 @@ export default function QuoteBuilder() {
                     placeholder={placeholder}
                     className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400 mb-3" />
                   <div className="grid grid-cols-2 gap-x-4 gap-y-3">
-                    {/* Q1 建築類型 */}
                     <div>
                       <p className="text-xs text-gray-500 mb-1.5">建築類型</p>
                       <div className="flex gap-2 flex-wrap">
@@ -439,7 +556,6 @@ export default function QuoteBuilder() {
                         ))}
                       </div>
                     </div>
-                    {/* Q2 臨停區 */}
                     <div>
                       <p className="text-xs text-gray-500 mb-1.5">是否有臨停區</p>
                       <div className="flex gap-2">
@@ -452,14 +568,12 @@ export default function QuoteBuilder() {
                         ))}
                       </div>
                     </div>
-                    {/* Q3 地下室高度 */}
                     <div>
                       <p className="text-xs text-gray-500 mb-1.5">地下室高度（選填）</p>
                       <input value={form[basementKey]} onChange={e => setForm(f => ({ ...f, [basementKey]: e.target.value }))}
                         placeholder="例：2.1m"
                         className="w-full border border-gray-200 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-brand-400" />
                     </div>
-                    {/* Q4 管理室 */}
                     <div>
                       <p className="text-xs text-gray-500 mb-1.5">是否有管理室</p>
                       <div className="flex gap-2">
@@ -479,159 +593,220 @@ export default function QuoteBuilder() {
           </div>
 
           {/* Product Categories */}
-          {CATEGORIES.map(cat => (
-            <div key={cat} className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
-              <button onClick={() => setExpandedCats(p => ({ ...p, [cat]: !p[cat] }))}
-                className="w-full px-5 py-4 flex items-center justify-between hover:bg-gray-50 transition-colors">
-                <div className="flex items-center gap-3">
-                  {cat === '打包計時人員' && <Users size={18} className="text-brand-500" />}
-                  <span className="font-semibold text-gray-800">{cat}</span>
-                  {cat === '打包計時人員' ? (
-                    (catItems(cat).length > 0 || staffItems.length > 0) && (
-                      <span className="bg-green-100 text-green-700 text-xs font-medium px-2 py-0.5 rounded-full">
-                        {staffItems.length} 筆工時 · NT${(catTotal(cat) + Math.round(staffTotal)).toLocaleString()}
-                      </span>
-                    )
-                  ) : (
-                    catItems(cat).length > 0 && (
-                      <span className="bg-brand-100 text-brand-700 text-xs font-medium px-2 py-0.5 rounded-full">
-                        {catItems(cat).length} 項 · NT${catTotal(cat).toLocaleString()}
-                      </span>
-                    )
-                  )}
-                </div>
-                {expandedCats[cat] ? <ChevronUp size={18} className="text-gray-400" /> : <ChevronDown size={18} className="text-gray-400" />}
-              </button>
-              {expandedCats[cat] && (
-                <div className="px-5 pb-5">
-                  {/* Product catalog chips */}
-                  <div className="flex flex-wrap gap-2 mb-4">
-                    {PRODUCT_CATALOG[cat].map(p => (
-                      <button key={p.name} onClick={() => addItem(cat, p.name, p.price)}
-                        className="text-xs bg-gray-100 hover:bg-brand-100 hover:text-brand-700 text-gray-600 px-3 py-1.5 rounded-full transition-all flex items-center gap-1">
-                        <Plus size={12} />{p.name}
-                        {p.price > 0 && <span className="text-gray-400 ml-1">${p.price.toLocaleString()}</span>}
-                      </button>
-                    ))}
+          {CATEGORIES.map(cat => {
+            const isStaffCat = cat === '計時人員';
+            return (
+              <div key={cat} className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+                <button onClick={() => setExpandedCats(p => ({ ...p, [cat]: !p[cat] }))}
+                  className="w-full px-5 py-4 flex items-center justify-between hover:bg-gray-50 transition-colors">
+                  <div className="flex items-center gap-3">
+                    {isStaffCat && <Users size={18} className="text-brand-500" />}
+                    <span className="font-semibold text-gray-800">{cat}</span>
+                    {isStaffCat ? (
+                      staffItems.length > 0 && (
+                        <span className="bg-green-100 text-green-700 text-xs font-medium px-2 py-0.5 rounded-full">
+                          {staffItems.length} 筆工時 · NT${Math.round(staffTotal).toLocaleString()}
+                        </span>
+                      )
+                    ) : (
+                      catItems(cat).length > 0 && (
+                        <span className="bg-brand-100 text-brand-700 text-xs font-medium px-2 py-0.5 rounded-full">
+                          {catItems(cat).length} 項 · NT${catTotal(cat).toLocaleString()}
+                        </span>
+                      )
+                    )}
                   </div>
-                  {/* Line items */}
-                  {catItems(cat).length > 0 && (
-                    <div className="space-y-2 mb-4">
-                      <div className="grid grid-cols-12 text-xs text-gray-400 font-medium px-2 gap-2">
-                        <span className="col-span-4">品項</span>
-                        <span className="col-span-3 text-right">單價</span>
-                        <span className="col-span-2 text-center">數量</span>
-                        <span className="col-span-2 text-right">小計</span>
-                        <span className="col-span-1" />
-                      </div>
-                      {items.map((item, idx) => item.category !== cat ? null : (
-                        <div key={idx} className="grid grid-cols-12 gap-2 items-center bg-gray-50 rounded-xl px-2 py-1.5">
-                          <input value={item.name} onChange={e => updateItem(idx, 'name', e.target.value)}
-                            className="col-span-4 bg-transparent text-sm text-gray-800 focus:outline-none" />
-                          <div className="col-span-3 flex items-center justify-end gap-0.5">
-                            <span className="text-xs text-gray-400">$</span>
-                            <input type="number" value={item.unit_price} onChange={e => updateItem(idx, 'unit_price', +e.target.value)}
-                              className="w-20 text-right text-sm bg-white border border-gray-200 rounded-lg px-2 py-1 focus:outline-none focus:ring-1 focus:ring-brand-400" />
-                          </div>
-                          <div className="col-span-2 flex items-center justify-center gap-1">
-                            <button onClick={() => updateItem(idx, 'quantity', Math.max(1, item.quantity - 1))}
-                              className="w-6 h-6 flex items-center justify-center bg-white border border-gray-200 rounded text-sm hover:bg-gray-100 flex-shrink-0">-</button>
-                            <input
-                              type="number" min={1} value={item.quantity}
-                              onChange={e => updateItem(idx, 'quantity', Math.max(1, parseInt(e.target.value) || 1))}
-                              className="w-10 text-center text-sm border border-gray-200 rounded px-1 py-0.5 focus:outline-none focus:ring-1 focus:ring-brand-400"
-                            />
-                            <button onClick={() => updateItem(idx, 'quantity', item.quantity + 1)}
-                              className="w-6 h-6 flex items-center justify-center bg-white border border-gray-200 rounded text-sm hover:bg-gray-100 flex-shrink-0">+</button>
-                          </div>
-                          <div className="col-span-2 text-right text-sm font-medium text-gray-800">
-                            ${(item.unit_price * item.quantity).toLocaleString()}
-                          </div>
-                          <button onClick={() => removeItem(idx)} className="col-span-1 flex justify-center p-1 hover:text-red-500 transition-colors">
-                            <Trash2 size={14} />
-                          </button>
-                        </div>
+                  {expandedCats[cat] ? <ChevronUp size={18} className="text-gray-400" /> : <ChevronDown size={18} className="text-gray-400" />}
+                </button>
+
+                {expandedCats[cat] && (
+                  <div className="px-5 pb-5">
+                    {/* Product catalog chips */}
+                    <div className="flex flex-wrap gap-2 mb-4">
+                      {PRODUCT_CATALOG[cat].map(p => (
+                        <button key={p.name} onClick={() => addItem(cat, p.name, p.price)}
+                          className="text-xs bg-gray-100 hover:bg-brand-100 hover:text-brand-700 text-gray-600 px-3 py-1.5 rounded-full transition-all flex items-center gap-1">
+                          <Plus size={12} />{p.name}
+                          {p.price > 0 && <span className="text-gray-400 ml-1">${p.price.toLocaleString()}</span>}
+                        </button>
                       ))}
-                      {cat !== '打包計時人員' && (
-                        <div className="text-right text-sm font-semibold text-brand-600 pr-2 pt-1">
-                          小計：NT${catTotal(cat).toLocaleString()}
-                        </div>
+                      {/* +自訂 button (non-staff categories) */}
+                      {!isStaffCat && (
+                        <button onClick={() => setCustomForm({ category: cat, name: '', price: '0', qty: '1' })}
+                          className="text-xs bg-amber-50 hover:bg-amber-100 text-amber-700 border border-dashed border-amber-300 px-3 py-1.5 rounded-full transition-all flex items-center gap-1">
+                          <Plus size={12} />自訂
+                        </button>
                       )}
                     </div>
-                  )}
 
-                  {/* ── 打包計時人員：工時排班區塊 ── */}
-                  {cat === '打包計時人員' && (
-                    <div className={catItems(cat).length > 0 ? 'mt-4 pt-4 border-t border-gray-100' : ''}>
-                      <p className="text-xs text-gray-400 mb-3">計時人員工時安排：每筆計算 工時 × 人數 × 時薪</p>
-                      {staffItems.length > 0 && (
-                        <div className="space-y-2 mb-3">
-                          <div className="grid grid-cols-12 text-xs text-gray-400 font-medium gap-2 px-2">
-                            <span className="col-span-2">日期</span>
-                            <span className="col-span-2">開始</span>
-                            <span className="col-span-2">結束</span>
-                            <span className="col-span-1 text-center">人數</span>
-                            <span className="col-span-2 text-right">時薪/人</span>
-                            <span className="col-span-2 text-right">小計</span>
-                            <span className="col-span-1" />
+                    {/* Custom item inline form */}
+                    {customForm?.category === cat && (
+                      <div className="flex flex-wrap gap-2 items-center mb-4 p-3 bg-amber-50 rounded-xl border border-amber-200">
+                        <input value={customForm.name} onChange={e => setCustomForm(f => f ? { ...f, name: e.target.value } : f)}
+                          placeholder="品項名稱"
+                          className="flex-1 min-w-24 border border-gray-200 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-amber-400" />
+                        <div className="flex items-center gap-1">
+                          <span className="text-xs text-gray-400">$</span>
+                          <input type="number" value={customForm.price} onChange={e => setCustomForm(f => f ? { ...f, price: e.target.value } : f)}
+                            placeholder="單價"
+                            className="w-24 border border-gray-200 rounded-lg px-2 py-1.5 text-sm text-right focus:outline-none focus:ring-1 focus:ring-amber-400" />
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <span className="text-xs text-gray-400">×</span>
+                          <input type="number" value={customForm.qty} onChange={e => setCustomForm(f => f ? { ...f, qty: e.target.value } : f)}
+                            placeholder="數量" min={1}
+                            className="w-16 border border-gray-200 rounded-lg px-2 py-1.5 text-sm text-center focus:outline-none focus:ring-1 focus:ring-amber-400" />
+                        </div>
+                        <button onClick={addCustomItem}
+                          className="px-3 py-1.5 bg-amber-500 text-white text-xs rounded-lg hover:bg-amber-600 transition-colors">確認新增</button>
+                        <button onClick={() => setCustomForm(null)}
+                          className="px-3 py-1.5 bg-gray-100 text-gray-600 text-xs rounded-lg hover:bg-gray-200 transition-colors">取消</button>
+                      </div>
+                    )}
+
+                    {/* ── 計時人員：合併工時排班區（無獨立 line items） ── */}
+                    {isStaffCat ? (
+                      <div>
+                        <p className="text-xs text-gray-400 mb-3">每筆計算：工時 × 人數 × 時薪（工時 = 結束 − 開始 − 休息）</p>
+                        {staffItems.length > 0 && (
+                          <div className="space-y-2 mb-3">
+                            <div className="grid text-xs text-gray-400 font-medium gap-2 px-2"
+                              style={{ gridTemplateColumns: '80px 1fr 1fr 72px 1fr 52px 1fr 28px' }}>
+                              <span>品項</span>
+                              <span>日期</span>
+                              <span>開始</span>
+                              <span>結束</span>
+                              <span className="text-center">休息(h)</span>
+                              <span className="text-center">人數</span>
+                              <span className="text-right">時薪/人</span>
+                              <span />
+                            </div>
+                            {staffItems.map((item, idx) => {
+                              const hours = calcHours(item.start_time, item.end_time, item.break_hours);
+                              const sub = Math.round(hours * item.person_count * item.unit_price);
+                              return (
+                                <div key={idx}
+                                  draggable
+                                  onDragStart={() => handleStaffDragStart(idx)}
+                                  onDragOver={e => handleStaffDragOver(e, idx)}
+                                  className="bg-gray-50 rounded-xl px-2 py-2 cursor-grab active:cursor-grabbing">
+                                  <div className="grid gap-2 items-center"
+                                    style={{ gridTemplateColumns: '80px 1fr 1fr 72px 1fr 52px 1fr 28px' }}>
+                                    {/* 品項名稱 */}
+                                    <select value={item.item_name}
+                                      onChange={e => {
+                                        const p = PRODUCT_CATALOG['計時人員'].find(p => p.name === e.target.value);
+                                        updateStaffItem(idx, 'item_name', e.target.value);
+                                        if (p) updateStaffItem(idx, 'unit_price', p.price);
+                                      }}
+                                      className="bg-white border border-gray-200 rounded-lg px-1 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-brand-400">
+                                      {PRODUCT_CATALOG['計時人員'].map(p => (
+                                        <option key={p.name} value={p.name}>{p.name}</option>
+                                      ))}
+                                    </select>
+                                    {/* 日期 */}
+                                    <input type="date" value={item.work_date}
+                                      onChange={e => updateStaffItem(idx, 'work_date', e.target.value)}
+                                      className="bg-white border border-gray-200 rounded-lg px-1 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-brand-400" />
+                                    {/* 開始時間 */}
+                                    <TimeInput value={item.start_time}
+                                      onChange={v => updateStaffItem(idx, 'start_time', v)} />
+                                    {/* 結束時間 */}
+                                    <TimeInput value={item.end_time}
+                                      onChange={v => updateStaffItem(idx, 'end_time', v)} />
+                                    {/* 休息時間 */}
+                                    <select value={item.break_hours}
+                                      onChange={e => updateStaffItem(idx, 'break_hours', parseFloat(e.target.value))}
+                                      className="bg-white border border-gray-200 rounded-lg px-1 py-1 text-xs text-center focus:outline-none focus:ring-1 focus:ring-brand-400">
+                                      {BREAK_OPTIONS.map(v => (
+                                        <option key={v} value={v}>{v === 0 ? '無' : `${v}h`}</option>
+                                      ))}
+                                    </select>
+                                    {/* 人數 */}
+                                    <input type="number" min={1} value={item.person_count}
+                                      onChange={e => updateStaffItem(idx, 'person_count', +e.target.value)}
+                                      className="bg-white border border-gray-200 rounded-lg px-1 py-1 text-xs text-center focus:outline-none focus:ring-1 focus:ring-brand-400" />
+                                    {/* 時薪 + 小計 */}
+                                    <div className="flex items-center justify-end gap-0.5">
+                                      <span className="text-xs text-gray-400">$</span>
+                                      <input type="number" value={item.unit_price}
+                                        onChange={e => updateStaffItem(idx, 'unit_price', +e.target.value)}
+                                        className="w-16 text-right text-xs bg-white border border-gray-200 rounded-lg px-1 py-1 focus:outline-none focus:ring-1 focus:ring-brand-400" />
+                                    </div>
+                                    <button onClick={() => removeStaffItem(idx)} className="flex justify-center p-1 hover:text-red-500 transition-colors">
+                                      <Trash2 size={14} />
+                                    </button>
+                                  </div>
+                                  {/* Sub-row: computed hours & subtotal */}
+                                  <div className="mt-1 flex items-center gap-3 px-2 text-xs text-gray-500">
+                                    <span>工時：{hours.toFixed(1)} h</span>
+                                    <span className="text-gray-300">（{item.start_time} – {item.end_time}{item.break_hours > 0 ? ` − ${item.break_hours}h 休息` : ''}）</span>
+                                    <span className="ml-auto font-semibold text-gray-800">小計 NT${sub.toLocaleString()}</span>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                            <p className="text-right text-xs text-gray-400 pr-2 mt-1">※ 休息時間不計費</p>
+                            <div className="text-right text-sm font-semibold text-green-600 pr-2 pt-1">
+                              計時人員合計：NT${Math.round(staffTotal).toLocaleString()}
+                            </div>
                           </div>
-                          {staffItems.map((item, idx) => {
-                            const hours = calcHours(item.start_time, item.end_time);
-                            const sub = Math.round(hours * item.person_count * item.unit_price);
-                            return (
-                              <div key={idx}
-                                draggable
-                                onDragStart={() => handleStaffDragStart(idx)}
-                                onDragOver={e => handleStaffDragOver(e, idx)}
-                                className="grid grid-cols-12 gap-2 items-center bg-gray-50 rounded-xl px-2 py-2 cursor-grab active:cursor-grabbing">
-                                <input type="date" value={item.work_date}
-                                  onChange={e => updateStaffItem(idx, 'work_date', e.target.value)}
-                                  className="col-span-2 bg-white border border-gray-200 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-brand-400" />
-                                <input type="time" value={item.start_time}
-                                  onChange={e => updateStaffItem(idx, 'start_time', e.target.value)}
-                                  className="col-span-2 bg-white border border-gray-200 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-brand-400" />
-                                <input type="time" value={item.end_time}
-                                  onChange={e => updateStaffItem(idx, 'end_time', e.target.value)}
-                                  className="col-span-2 bg-white border border-gray-200 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-brand-400" />
-                                <input type="number" min={1} value={item.person_count}
-                                  onChange={e => updateStaffItem(idx, 'person_count', +e.target.value)}
-                                  className="col-span-1 bg-white border border-gray-200 rounded-lg px-1 py-1 text-xs text-center focus:outline-none focus:ring-1 focus:ring-brand-400" />
-                                <div className="col-span-2 flex items-center justify-end gap-0.5">
+                        )}
+                        <button onClick={() => addStaffItem()}
+                          className="flex items-center gap-2 text-sm text-green-600 hover:text-green-700 border border-dashed border-green-300 hover:border-green-400 px-4 py-2 rounded-xl transition-all w-full justify-center">
+                          <Plus size={15} />新增工時記錄
+                        </button>
+                      </div>
+                    ) : (
+                      /* ── Non-staff line items ── */
+                      <>
+                        {catItems(cat).length > 0 && (
+                          <div className="space-y-2 mb-4">
+                            <div className="grid grid-cols-12 text-xs text-gray-400 font-medium px-2 gap-2">
+                              <span className="col-span-4">品項</span>
+                              <span className="col-span-3 text-right">單價</span>
+                              <span className="col-span-2 text-center">數量</span>
+                              <span className="col-span-2 text-right">小計</span>
+                              <span className="col-span-1" />
+                            </div>
+                            {items.map((item, idx) => item.category !== cat ? null : (
+                              <div key={idx} className="grid grid-cols-12 gap-2 items-center bg-gray-50 rounded-xl px-2 py-1.5">
+                                <input value={item.name} onChange={e => updateItem(idx, 'name', e.target.value)}
+                                  className="col-span-4 bg-transparent text-sm text-gray-800 focus:outline-none" />
+                                <div className="col-span-3 flex items-center justify-end gap-0.5">
                                   <span className="text-xs text-gray-400">$</span>
-                                  <input type="number" value={item.unit_price}
-                                    onChange={e => updateStaffItem(idx, 'unit_price', +e.target.value)}
-                                    className="w-16 text-right text-xs bg-white border border-gray-200 rounded-lg px-1 py-1 focus:outline-none focus:ring-1 focus:ring-brand-400" />
+                                  <input type="number" value={item.unit_price} onChange={e => updateItem(idx, 'unit_price', +e.target.value)}
+                                    className="w-20 text-right text-sm bg-white border border-gray-200 rounded-lg px-2 py-1 focus:outline-none focus:ring-1 focus:ring-brand-400" />
                                 </div>
-                                <div className="col-span-2 text-right text-xs font-semibold text-gray-800">
-                                  ${sub.toLocaleString()}
-                                  <div className="text-gray-400 font-normal">{hours.toFixed(1)}h × {item.person_count}人</div>
+                                <div className="col-span-2 flex items-center justify-center gap-1">
+                                  <button onClick={() => updateItem(idx, 'quantity', Math.max(1, item.quantity - 1))}
+                                    className="w-6 h-6 flex items-center justify-center bg-white border border-gray-200 rounded text-sm hover:bg-gray-100 flex-shrink-0">-</button>
+                                  <input type="number" min={1} value={item.quantity}
+                                    onChange={e => updateItem(idx, 'quantity', Math.max(1, parseInt(e.target.value) || 1))}
+                                    className="w-10 text-center text-sm border border-gray-200 rounded px-1 py-0.5 focus:outline-none focus:ring-1 focus:ring-brand-400" />
+                                  <button onClick={() => updateItem(idx, 'quantity', item.quantity + 1)}
+                                    className="w-6 h-6 flex items-center justify-center bg-white border border-gray-200 rounded text-sm hover:bg-gray-100 flex-shrink-0">+</button>
                                 </div>
-                                <button onClick={() => removeStaffItem(idx)} className="col-span-1 flex justify-center p-1 hover:text-red-500 transition-colors">
+                                <div className="col-span-2 text-right text-sm font-medium text-gray-800">
+                                  ${(item.unit_price * item.quantity).toLocaleString()}
+                                </div>
+                                <button onClick={() => removeItem(idx)} className="col-span-1 flex justify-center p-1 hover:text-red-500 transition-colors">
                                   <Trash2 size={14} />
                                 </button>
                               </div>
-                            );
-                          })}
-                          <div className="text-right text-sm font-semibold text-green-600 pr-2 pt-1">
-                            人員費小計：NT${Math.round(staffTotal).toLocaleString()}
+                            ))}
+                            <div className="text-right text-sm font-semibold text-brand-600 pr-2 pt-1">
+                              小計：NT${catTotal(cat).toLocaleString()}
+                            </div>
                           </div>
-                        </div>
-                      )}
-                      <button onClick={addStaffItem}
-                        className="flex items-center gap-2 text-sm text-green-600 hover:text-green-700 border border-dashed border-green-300 hover:border-green-400 px-4 py-2 rounded-xl transition-all w-full justify-center">
-                        <Plus size={15} />新增工時記錄
-                      </button>
-                      {(catItems(cat).length > 0 || staffItems.length > 0) && (
-                        <div className="text-right text-sm font-semibold text-brand-600 pr-2 pt-3 border-t border-gray-100 mt-3">
-                          打包計時人員合計：NT${(catTotal(cat) + Math.round(staffTotal)).toLocaleString()}
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          ))}
+                        )}
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })}
 
           {/* ── Quote Schedule (Gantt Input) ── */}
           <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
@@ -650,7 +825,7 @@ export default function QuoteBuilder() {
             </button>
             {expandedCats._schedule && (
               <div className="px-5 pb-5">
-                <p className="text-xs text-gray-400 mb-3">列印報價單時將顯示排程表與 Gantt 圖</p>
+                <p className="text-xs text-gray-400 mb-3">列印報價單時將顯示排程表與 Gantt 圖。時間未重疊的項目在同一列顯示。</p>
                 {scheduleItems.length > 0 && (
                   <div className="space-y-2 mb-3">
                     <div className="grid grid-cols-12 text-xs text-gray-400 font-medium gap-2 px-2">
@@ -670,12 +845,12 @@ export default function QuoteBuilder() {
                         <input type="date" value={item.work_date}
                           onChange={e => updateScheduleItem(idx, 'work_date', e.target.value)}
                           className="col-span-2 bg-white border border-gray-200 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-brand-400" />
-                        <input type="time" value={item.start_time}
-                          onChange={e => updateScheduleItem(idx, 'start_time', e.target.value)}
-                          className="col-span-2 bg-white border border-gray-200 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-brand-400" />
-                        <input type="time" value={item.end_time}
-                          onChange={e => updateScheduleItem(idx, 'end_time', e.target.value)}
-                          className="col-span-2 bg-white border border-gray-200 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-brand-400" />
+                        <TimeInput value={item.start_time}
+                          onChange={v => updateScheduleItem(idx, 'start_time', v)}
+                          className="col-span-2" />
+                        <TimeInput value={item.end_time}
+                          onChange={v => updateScheduleItem(idx, 'end_time', v)}
+                          className="col-span-2" />
                         <input value={item.label} onChange={e => updateScheduleItem(idx, 'label', e.target.value)}
                           placeholder="作業名稱"
                           className="col-span-3 bg-white border border-gray-200 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-brand-400" />
@@ -698,9 +873,49 @@ export default function QuoteBuilder() {
             )}
           </div>
 
-          {/* Notes */}
+          {/* ── 備註區 ── */}
           <div className="bg-white rounded-2xl border border-gray-100 p-5">
-            <h2 className="font-semibold text-gray-800 mb-4">注意事項</h2>
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <AlignLeft size={16} className="text-gray-500" />
+                <h2 className="font-semibold text-gray-800">備註</h2>
+              </div>
+              <button onClick={addRemarkNote}
+                className="flex items-center gap-1 text-xs text-brand-600 hover:text-brand-700 border border-brand-200 hover:border-brand-400 px-3 py-1 rounded-lg transition-all">
+                <Plus size={12} />新增條目
+              </button>
+            </div>
+            <p className="text-xs text-gray-400 mb-3">此備註將顯示於報價單注意事項上方</p>
+            {remarkNotes.length === 0 && (
+              <p className="text-sm text-gray-300 text-center py-3">尚無備註，點擊右上角「新增條目」</p>
+            )}
+            <div className="space-y-2">
+              {remarkNotes.map((note, idx) => (
+                <div key={idx} className="flex items-center gap-2">
+                  <span className="text-gray-400 text-sm flex-shrink-0">•</span>
+                  <input value={note} onChange={e => updateRemarkNote(idx, e.target.value)}
+                    placeholder="輸入備註內容..."
+                    className="flex-1 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400" />
+                  <button onClick={() => removeRemarkNote(idx)}
+                    className="p-1.5 hover:text-red-500 text-gray-400 transition-colors flex-shrink-0">
+                    <Trash2 size={14} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* ── 注意事項 ── */}
+          <div className="bg-white rounded-2xl border border-gray-100 p-5">
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="font-semibold text-gray-800">注意事項</h2>
+              <button onClick={toggleAllNotes}
+                className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-brand-600 transition-colors">
+                {checkedNotes.size === notes.length && notes.length > 0
+                  ? <><CheckSquare size={14} className="text-brand-500" />取消全選</>
+                  : <><Square size={14} />全選</>}
+              </button>
+            </div>
             <p className="text-xs text-gray-400 mb-3">勾選的項目將列印於報價單下方</p>
             <div className="space-y-2">
               {notes.map(note => (
@@ -729,8 +944,7 @@ export default function QuoteBuilder() {
             <h2 className="font-semibold text-gray-800 mb-4">費用摘要</h2>
             <div className="space-y-3">
               {CATEGORIES.map(cat => {
-                const lineTotal = catTotal(cat);
-                const total = cat === '打包計時人員' ? lineTotal + Math.round(staffTotal) : lineTotal;
+                const total = catTotal(cat);
                 return total > 0 ? (
                   <div key={cat} className="flex justify-between text-sm">
                     <span className="text-gray-500">{cat}</span>

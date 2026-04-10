@@ -66,7 +66,7 @@ export interface Booking {
 export interface QuoteItem {
   id: string;
   quote_id: string;
-  category: '搬家車趟費' | '打包計時人員' | '包材費';
+  category: '搬家車趟費' | '計時人員' | '包材費' | string;
   name: string;
   unit_price: number;
   quantity: number;
@@ -110,6 +110,7 @@ export interface Quote {
   deposit: number;
   status: '草稿' | '已發送' | '已確認' | '已取消';
   internal_notes: string | null;
+  remark_notes: string | null;
   created_at: string;
   quote_items?: QuoteItem[];
   staff_schedule_items?: StaffScheduleItem[];
@@ -140,9 +141,11 @@ export interface Consultant {
 export interface StaffScheduleItem {
   id: string;
   quote_id: string;
+  item_name: string;
   work_date: string;
   start_time: string;
   end_time: string;
+  break_hours: number;
   person_count: number;
   unit_price: number;
   sort_order: number;
