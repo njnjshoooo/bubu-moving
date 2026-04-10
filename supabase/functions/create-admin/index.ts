@@ -1,0 +1,100 @@
+import { serve } from 'https://deno.land/std@0.168.0/http/server.ts';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+};
+
+serve(async (req) => {
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', { headers: corsHeaders });
+  }
+
+  try {
+    const { email, display_name, role } = await req.json();
+
+    if (!email || !display_name || !role) {
+      return new Response(JSON.stringify({ error: '缺少必要欄位' }), {
+        status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+    if (!['admin', 'manager'].includes(role)) {
+      return new Response(JSON.stringify({ error: '無效的角色' }), {
+        status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // 使用 service_role 建立用戶
+    const supabase = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+    );
+
+    // 1. 建立 auth 用戶
+    const { data: authData, error: authErr } = await supabase.auth.admin.createUser({
+      email,
+      email_confirm: true,
+      user_metadata: { display_name },
+    });
+    if (authErr) throw authErr;
+    const userId = authData.user.id;
+
+    // 2. 寫入 bubu_app_users
+    const { error: userErr } = await supabase.from('bubu_app_users').insert({
+      id: userId,
+      role,
+      display_name,
+    });
+    if (userErr) throw userErr;
+
+    // 3. 產生密碼設定連結
+    const { data: linkData, error: linkErr } = await supabase.auth.admin.generateLink({
+      type: 'recovery',
+      email,
+    });
+    if (linkErr) throw linkErr;
+    const resetLink = linkData?.properties?.action_link ?? '';
+
+    // 4. 用 Resend 寄邀請信
+    const resendKey = Deno.env.get('RESEND_API_KEY');
+    if (resendKey && resetLink) {
+      const roleText = role === 'admin' ? '最高管理者' : '主管';
+      await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${resendKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          from: 'noreply@bubumoving.com.tw',
+          to: email,
+          subject: '【步步搬家】您已被邀請為管理帳號',
+          html: `
+            <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:32px;background:#f9fafb;border-radius:12px;">
+              <h2 style="color:#1f2937;margin-bottom:8px;">歡迎加入步步搬家管理團隊</h2>
+              <p style="color:#6b7280;">您好 ${display_name}，</p>
+              <p style="color:#6b7280;">您已被設定為<strong style="color:#374151;">「${roleText}」</strong>角色。</p>
+              <p style="color:#6b7280;">請點擊下方按鈕設定您的登入密碼：</p>
+              <a href="${resetLink}"
+                style="display:inline-block;margin:16px 0;padding:12px 24px;background:#7c3aed;color:white;text-decoration:none;border-radius:8px;font-weight:600;">
+                設定我的密碼
+              </a>
+              <p style="color:#9ca3af;font-size:12px;">此連結有效期為 24 小時。如有問題請聯絡系統管理員。</p>
+            </div>
+          `,
+        }),
+      });
+    }
+
+    return new Response(JSON.stringify({ success: true, user_id: userId }), {
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+
+  } catch (err: any) {
+    console.error('create-admin error:', err);
+    return new Response(JSON.stringify({ error: err.message ?? '建立失敗' }), {
+      status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+  }
+});

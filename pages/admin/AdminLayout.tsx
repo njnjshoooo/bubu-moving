@@ -2,20 +2,21 @@ import React, { useState } from 'react';
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import {
   Truck, LayoutDashboard, Calendar, ClipboardList,
-  FileText, LogOut, Menu, ChevronRight, Users
+  FileText, LogOut, Menu, ChevronRight, Users, ShieldCheck
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 
 const navItems = [
-  { to: '/admin', label: '儀表板', icon: LayoutDashboard, end: true },
-  { to: '/admin/calendar', label: '行事曆管理', icon: Calendar },
-  { to: '/admin/bookings', label: '預約管理', icon: ClipboardList },
-  { to: '/admin/quotes', label: '報價單', icon: FileText },
-  { to: '/admin/consultants', label: '顧問管理', icon: Users },
+  { to: '/admin', label: '儀表板', icon: LayoutDashboard, end: true, adminOnly: false },
+  { to: '/admin/calendar', label: '行事曆管理', icon: Calendar, adminOnly: false },
+  { to: '/admin/bookings', label: '預約管理', icon: ClipboardList, adminOnly: false },
+  { to: '/admin/quotes', label: '報價單', icon: FileText, adminOnly: false },
+  { to: '/admin/consultants', label: '顧問管理', icon: Users, adminOnly: false },
+  { to: '/admin/users', label: '用戶管理', icon: ShieldCheck, adminOnly: true },
 ];
 
 export default function AdminLayout() {
-  const { profile, signOut } = useAuth();
+  const { profile, signOut, isAdmin } = useAuth();
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
@@ -41,7 +42,7 @@ export default function AdminLayout() {
 
       {/* Nav */}
       <nav className="flex-1 p-4 space-y-1">
-        {navItems.map(({ to, label, icon: Icon, end }) => (
+        {navItems.filter(item => !item.adminOnly || isAdmin).map(({ to, label, icon: Icon, end }) => (
           <NavLink
             key={to}
             to={to}

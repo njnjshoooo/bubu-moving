@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { Plus, UserCheck, UserX, Phone, MapPin, Mail } from 'lucide-react';
-import { supabase, Consultant, T } from '../../lib/supabase';
+import { Plus, UserCheck, UserX, Phone, MapPin, Target, X } from 'lucide-react';
+import { supabase, Consultant, ConsultantGoal, T } from '../../lib/supabase';
 
 interface ConsultantWithEmail extends Consultant {
   email?: string;
@@ -13,6 +13,16 @@ export default function AdminConsultants() {
   const [addForm, setAddForm] = useState({ display_name: '', phone: '', email: '', address: '' });
   const [adding, setAdding] = useState(false);
   const [addError, setAddError] = useState('');
+
+  // 月目標 Modal
+  const now = new Date();
+  const [goalModal, setGoalModal] = useState<Consultant | null>(null);
+  const [goalForm, setGoalForm] = useState({
+    year: now.getFullYear(),
+    month: now.getMonth() + 1,
+    monthly_target: 0,
+  });
+  const [savingGoal, setSavingGoal] = useState(false);
 
   const loadConsultants = async () => {
     const { data } = await supabase.from(T.consultants).select('*').order('created_at', { ascending: false });
@@ -53,6 +63,31 @@ export default function AdminConsultants() {
       .update({ is_active: !consultant.is_active })
       .eq('id', consultant.id);
     setConsultants(prev => prev.map(c => c.id === consultant.id ? { ...c, is_active: !c.is_active } : c));
+  };
+
+  const openGoalModal = async (c: Consultant) => {
+    setGoalModal(c);
+    // 嘗試讀取現有目標
+    const { data } = await supabase.from(T.goals)
+      .select('*')
+      .eq('consultant_id', c.id)
+      .eq('year', goalForm.year)
+      .eq('month', goalForm.month)
+      .maybeSingle();
+    if (data) setGoalForm({ year: data.year, month: data.month, monthly_target: data.monthly_target });
+  };
+
+  const saveGoal = async () => {
+    if (!goalModal) return;
+    setSavingGoal(true);
+    await supabase.from(T.goals).upsert({
+      consultant_id: goalModal.id,
+      year: goalForm.year,
+      month: goalForm.month,
+      monthly_target: goalForm.monthly_target,
+    }, { onConflict: 'consultant_id,year,month' });
+    setSavingGoal(false);
+    setGoalModal(null);
   };
 
   return (
@@ -171,14 +206,20 @@ export default function AdminConsultants() {
                       </span>
                     </td>
                     <td className="px-5 py-4">
-                      <button onClick={() => toggleActive(c)}
-                        className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-xl border transition-all ${
-                          c.is_active
-                            ? 'text-red-500 border-red-200 hover:bg-red-50'
-                            : 'text-green-600 border-green-200 hover:bg-green-50'
-                        }`}>
-                        {c.is_active ? <><UserX size={13} />停用</> : <><UserCheck size={13} />啟用</>}
-                      </button>
+                      <div className="flex items-center gap-2">
+                        <button onClick={() => openGoalModal(c)}
+                          className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-xl border border-brand-200 text-brand-600 hover:bg-brand-50 transition-all">
+                          <Target size={13} />月目標
+                        </button>
+                        <button onClick={() => toggleActive(c)}
+                          className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-xl border transition-all ${
+                            c.is_active
+                              ? 'text-red-500 border-red-200 hover:bg-red-50'
+                              : 'text-green-600 border-green-200 hover:bg-green-50'
+                          }`}>
+                          {c.is_active ? <><UserX size={13} />停用</> : <><UserCheck size={13} />啟用</>}
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -193,6 +234,55 @@ export default function AdminConsultants() {
         <p>點擊「新增顧問」後，系統需要 <code className="bg-blue-100 px-1 rounded">create-consultant</code> Edge Function 來以管理員身份建立帳號。</p>
         <p className="mt-1">請確認已在 Supabase 部署此 Edge Function，並設定 <code className="bg-blue-100 px-1 rounded">SUPABASE_SERVICE_ROLE_KEY</code> 環境變數。</p>
       </div>
+
+      {/* 月目標 Modal */}
+      {goalModal && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl w-full max-w-sm p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-semibold text-gray-800">設定月目標 — {goalModal.display_name}</h3>
+              <button onClick={() => setGoalModal(null)} className="p-1 hover:bg-gray-100 rounded-lg">
+                <X size={16} />
+              </button>
+            </div>
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1.5">年份</label>
+                  <input type="number" value={goalForm.year}
+                    onChange={e => setGoalForm({ ...goalForm, year: Number(e.target.value) })}
+                    className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400" />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1.5">月份</label>
+                  <select value={goalForm.month}
+                    onChange={e => setGoalForm({ ...goalForm, month: Number(e.target.value) })}
+                    className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400">
+                    {Array.from({ length: 12 }, (_, i) => (
+                      <option key={i + 1} value={i + 1}>{i + 1} 月</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1.5">月目標金額（NT$）</label>
+                <input type="number" value={goalForm.monthly_target} min={0} step={10000}
+                  onChange={e => setGoalForm({ ...goalForm, monthly_target: Number(e.target.value) })}
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400"
+                  placeholder="300000" />
+              </div>
+              <div className="flex gap-2 justify-end pt-2">
+                <button onClick={() => setGoalModal(null)}
+                  className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-xl">取消</button>
+                <button onClick={saveGoal} disabled={savingGoal}
+                  className="px-4 py-2 bg-brand-500 hover:bg-brand-600 text-white text-sm rounded-xl disabled:opacity-60">
+                  {savingGoal ? '儲存中...' : '儲存目標'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

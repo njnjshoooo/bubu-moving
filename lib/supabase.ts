@@ -18,13 +18,14 @@ export const T = {
   slotConsultants:'bubu_slot_consultants',
   staffSchedule:  'bubu_staff_schedule_items',
   quoteSchedule:  'bubu_quote_schedule_items',
+  goals:          'bubu_consultant_goals',
 } as const;
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 export interface AppUser {
   id: string;
-  role: 'admin' | 'member' | 'consultant';
+  role: 'admin' | 'manager' | 'consultant' | 'member';
   display_name: string | null;
   phone: string | null;
   created_at: string;
@@ -100,6 +101,10 @@ export interface Quote {
   address_to_guard: string | null;
   consultant_name: string | null;
   consultant_phone: string | null;
+  consultant_id: string | null;
+  customer_user_id: string | null;
+  payment_link: string | null;
+  payment_status: string | null;
   subtotal: number;
   total: number;
   deposit: number;
@@ -110,6 +115,16 @@ export interface Quote {
   staff_schedule_items?: StaffScheduleItem[];
   quote_schedule_items?: QuoteScheduleItem[];
   bookings?: Booking;
+  consultant?: { display_name: string } | null;
+}
+
+export interface ConsultantGoal {
+  id: string;
+  consultant_id: string;
+  year: number;
+  month: number;
+  monthly_target: number;
+  created_at: string;
 }
 
 export interface Consultant {

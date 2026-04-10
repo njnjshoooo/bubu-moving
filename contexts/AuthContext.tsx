@@ -11,6 +11,7 @@ interface AuthContextType {
   signUp: (email: string, password: string, displayName: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
   isAdmin: boolean;
+  isManager: boolean;
   isConsultant: boolean;
 }
 
@@ -73,10 +74,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const isAdmin = profile?.role === 'admin';
+  const isManager = profile?.role === 'manager';
   const isConsultant = profile?.role === 'consultant';
 
   return (
-    <AuthContext.Provider value={{ user, session, profile, loading, signIn, signUp, signOut, isAdmin, isConsultant }}>
+    <AuthContext.Provider value={{ user, session, profile, loading, signIn, signUp, signOut, isAdmin, isManager, isConsultant }}>
       {children}
     </AuthContext.Provider>
   );

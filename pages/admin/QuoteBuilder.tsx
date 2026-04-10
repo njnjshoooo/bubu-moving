@@ -280,9 +280,18 @@ export default function QuoteBuilder() {
   const handleSave = async (redirectToView = false) => {
     setSaving(true);
     try {
+      // 若是顧問建立，自動關聯 consultant_id
+      let consultantId: string | null = null;
+      if (profile && profile.role === 'consultant') {
+        const { data: cData } = await supabase.from(T.consultants)
+          .select('id').eq('user_id', profile.id).maybeSingle();
+        consultantId = cData?.id ?? null;
+      }
+
       const quoteData = {
         quote_number: quoteNumber, booking_id: bookingId ?? null,
         ...form, subtotal, total: subtotal, deposit,
+        consultant_id: consultantId,
         status: (quoteStatus === '草稿' ? '草稿' : quoteStatus) as any,
       };
       let qid = existingQuoteId;

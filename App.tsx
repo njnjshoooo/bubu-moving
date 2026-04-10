@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { HashRouter, Routes, Route, Outlet } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
-import { AdminRoute, ProtectedRoute, ConsultantRoute } from './components/ProtectedRoute';
+import { AdminRoute, ProtectedRoute, ConsultantRoute, SuperAdminRoute } from './components/ProtectedRoute';
 
 // Public pages
 import Navbar from './components/Navbar';
@@ -45,6 +45,14 @@ import ConsultantProfile from './pages/consultant/ConsultantProfile';
 
 // Admin extra pages
 import AdminConsultants from './pages/admin/AdminConsultants';
+import AdminUsers from './pages/admin/AdminUsers';
+
+// Member extra pages
+import MemberQuotes from './pages/member/MemberQuotes';
+import MemberQuoteView from './pages/member/MemberQuoteView';
+
+// Consultant extra pages
+import ConsultantDashboard from './pages/consultant/ConsultantDashboard';
 
 export interface EstimationData {
   area: number;
@@ -145,11 +153,13 @@ function App() {
             <Route path="quotes/:quoteId" element={<QuoteBuilder />} />
             <Route path="quotes/:quoteId/view" element={<QuoteView />} />
             <Route path="consultants" element={<AdminConsultants />} />
+            <Route path="users" element={<SuperAdminRoute><AdminUsers /></SuperAdminRoute>} />
           </Route>
 
           {/* Consultant */}
           <Route path="/consultant" element={<ConsultantRoute><ConsultantLayout /></ConsultantRoute>}>
             <Route index element={<ConsultantSchedule />} />
+            <Route path="dashboard" element={<ConsultantDashboard />} />
             <Route path="profile" element={<ConsultantProfile />} />
           </Route>
 
@@ -157,6 +167,8 @@ function App() {
           <Route path="/member" element={<ProtectedRoute><MemberLayout /></ProtectedRoute>}>
             <Route index element={<MemberDashboard />} />
             <Route path="bookings" element={<MemberBookings />} />
+            <Route path="quotes" element={<MemberQuotes />} />
+            <Route path="quotes/:quoteId" element={<MemberQuoteView />} />
             <Route path="profile" element={<MemberProfile />} />
           </Route>
         </Routes>
