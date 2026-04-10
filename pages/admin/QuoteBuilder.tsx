@@ -1,7 +1,8 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
-import { Plus, Trash2, ChevronDown, ChevronUp, Save, Eye, ArrowLeft, Users, CalendarDays } from 'lucide-react';
+import { Plus, Trash2, ChevronDown, ChevronUp, Save, Eye, ArrowLeft, Users, CalendarDays, UserCircle } from 'lucide-react';
 import { supabase, NoteTemplate, T } from '../../lib/supabase';
+import { useAuth } from '../../contexts/AuthContext';
 
 // ─── Product Catalog ──────────────────────────────────────────────────────────
 const PRODUCT_CATALOG: Record<string, { name: string; price: number }[]> = {
@@ -103,6 +104,7 @@ const TODAY = new Date().toISOString().split('T')[0];
 export default function QuoteBuilder() {
   const { bookingId, quoteId } = useParams();
   const navigate = useNavigate();
+  const { profile } = useAuth();
 
   const [form, setForm] = useState<QuoteForm>({
     customer_name: '', phone: '', email: '', tax_id: '',
@@ -147,6 +149,19 @@ export default function QuoteBuilder() {
         });
     }
   }, [bookingId]);
+
+  // Auto-fill consultant from logged-in user (new quote only)
+  useEffect(() => {
+    if (quoteId || !profile) return;
+    // Try to find consultant record linked to current user
+    supabase.from(T.consultants).select('display_name, phone')
+      .eq('user_id', profile.id).eq('is_active', true).maybeSingle()
+      .then(({ data }) => {
+        const name = data?.display_name ?? profile.display_name ?? '';
+        const phone = data?.phone ?? profile.phone ?? '';
+        if (name) setForm(f => ({ ...f, consultant_name: name, consultant_phone: phone }));
+      });
+  }, [quoteId, profile]);
 
   useEffect(() => {
     if (!quoteId) {
@@ -348,6 +363,22 @@ export default function QuoteBuilder() {
         </div>
       </div>
 
+      {/* ── Consultant Bar ── */}
+      <div className="bg-white rounded-2xl border border-brand-100 px-5 py-3 flex items-center gap-4 flex-wrap">
+        <div className="flex items-center gap-2 text-brand-600 flex-shrink-0">
+          <UserCircle size={18} />
+          <span className="text-sm font-semibold">服務顧問</span>
+        </div>
+        <div className="flex gap-3 flex-1 flex-wrap">
+          <input value={form.consultant_name} onChange={e => setForm({ ...form, consultant_name: e.target.value })}
+            placeholder="顧問姓名（自動帶入，可修改）"
+            className="flex-1 min-w-36 border border-gray-200 rounded-xl px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400" />
+          <input value={form.consultant_phone} onChange={e => setForm({ ...form, consultant_phone: e.target.value })}
+            placeholder="聯繫方式（電話 / LINE）"
+            className="flex-1 min-w-36 border border-gray-200 rounded-xl px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400" />
+        </div>
+      </div>
+
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-5">
         {/* ── Left Column ── */}
         <div className="xl:col-span-2 space-y-5">
@@ -436,24 +467,6 @@ export default function QuoteBuilder() {
                 </div>
               );
             })}
-            {/* Consultant */}
-            <div className="mt-4 pt-4 border-t border-gray-100">
-              <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">服務顧問</h3>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-medium text-gray-500 mb-1.5">顧問姓名</label>
-                  <input value={form.consultant_name} onChange={e => setForm({ ...form, consultant_name: e.target.value })}
-                    placeholder="顧問姓名"
-                    className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400" />
-                </div>
-                <div>
-                  <label className="block text-xs font-medium text-gray-500 mb-1.5">顧問聯繫方式</label>
-                  <input value={form.consultant_phone} onChange={e => setForm({ ...form, consultant_phone: e.target.value })}
-                    placeholder="電話 / LINE"
-                    className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400" />
-                </div>
-              </div>
-            </div>
           </div>
 
           {/* Product Categories */}
