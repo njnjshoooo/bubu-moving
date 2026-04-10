@@ -229,12 +229,6 @@ export default function AdminConsultants() {
         </div>
       )}
 
-      <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 text-sm text-blue-700">
-        <p className="font-medium mb-1">📝 新增顧問說明</p>
-        <p>點擊「新增顧問」後，系統需要 <code className="bg-blue-100 px-1 rounded">create-consultant</code> Edge Function 來以管理員身份建立帳號。</p>
-        <p className="mt-1">請確認已在 Supabase 部署此 Edge Function，並設定 <code className="bg-blue-100 px-1 rounded">SUPABASE_SERVICE_ROLE_KEY</code> 環境變數。</p>
-      </div>
-
       {/* 月目標 Modal */}
       {goalModal && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
