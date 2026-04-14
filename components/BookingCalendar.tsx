@@ -95,7 +95,7 @@ export default function BookingCalendar() {
     setError('');
     setSubmitting(true);
     const address_from = [form.city, form.district, form.address_detail].filter(Boolean).join('');
-    const { error: err } = await supabase.from(T.bookings).insert({
+    const { data: bookingData, error: err } = await supabase.from(T.bookings).insert({
       time_slot_id: selectedSlot.id,
       customer_name: form.customer_name,
       phone: form.phone,
@@ -106,7 +106,7 @@ export default function BookingCalendar() {
       address_from,
       service_type: '到府估價',
       is_waitlist: isWaitlist,
-    });
+    }).select('id').single();
     if (err) {
       setError('預約失敗，請稍後再試或致電我們。');
       setSubmitting(false);
@@ -115,6 +115,14 @@ export default function BookingCalendar() {
     await supabase.from(T.slots)
       .update({ current_bookings: (selectedSlot.current_bookings ?? 0) + 1 })
       .eq('id', selectedSlot.id);
+    // 寄確認信（非關鍵，失敗不影響主流程）
+    if (bookingData?.id && form.email) {
+      try {
+        await supabase.functions.invoke('send-booking-email', {
+          body: { booking_id: bookingData.id, event_type: 'booking_created' },
+        });
+      } catch (_) { /* ignore */ }
+    }
     // Line 通知（非關鍵，失敗不影響主流程）
     try {
       await supabase.functions.invoke('send-line-message', {

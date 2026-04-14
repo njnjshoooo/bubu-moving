@@ -142,6 +142,7 @@ export default function QuoteView() {
   const globalHourLabels: number[] = [];
   for (let m = Math.floor(globalDayStart / 60) * 60; m <= globalDayEnd; m += 60) globalHourLabels.push(m);
   const deposit = quote.deposit ?? 0;
+  const discount = quote.discount ?? 0;
   const balance = Math.max(0, quote.total - deposit);
 
   return (
@@ -337,12 +338,24 @@ export default function QuoteView() {
 
         {/* Total */}
         <div className="mt-4 space-y-3">
-          <div className="bg-brand-500 text-white rounded-xl p-5 flex items-center justify-between">
-            <div>
-              <p className="text-brand-100 text-sm">合計金額（含稅）</p>
-              <p className="text-xs text-brand-200 mt-0.5">以上金額均為含稅報價</p>
+          <div className="bg-brand-500 text-white rounded-xl p-5">
+            {discount > 0 && (
+              <div className="flex items-center justify-between mb-3 pb-3 border-b border-brand-400">
+                <p className="text-brand-200 text-sm">原價</p>
+                <p className="text-xl text-brand-300 line-through">NT${quote.subtotal.toLocaleString()}</p>
+              </div>
+            )}
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-brand-100 text-sm">{discount > 0 ? '折扣後金額（含稅）' : '合計金額（含稅）'}</p>
+                {discount > 0 ? (
+                  <p className="text-xs text-brand-200 mt-0.5">折扣 NT${discount.toLocaleString()}</p>
+                ) : (
+                  <p className="text-xs text-brand-200 mt-0.5">以上金額均為含稅報價</p>
+                )}
+              </div>
+              <p className="text-3xl font-bold">NT${quote.total.toLocaleString()}</p>
             </div>
-            <p className="text-3xl font-bold">NT${quote.total.toLocaleString()}</p>
           </div>
           {deposit > 0 && (
             <div className="grid grid-cols-2 gap-3">

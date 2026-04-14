@@ -7,18 +7,19 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 // ─── Table Names（加 bubu_ 前綴，避免與其他網站衝突）────────────────────────
 export const T = {
-  users:          'bubu_app_users',
-  slots:          'bubu_time_slots',
-  bookings:       'bubu_bookings',
-  quotes:         'bubu_quotes',
-  quoteItems:     'bubu_quote_items',
-  noteTemplates:  'bubu_quote_note_templates',
-  checkedNotes:   'bubu_quote_checked_notes',
-  consultants:    'bubu_consultants',
-  slotConsultants:'bubu_slot_consultants',
-  staffSchedule:  'bubu_staff_schedule_items',
-  quoteSchedule:  'bubu_quote_schedule_items',
-  goals:          'bubu_consultant_goals',
+  users:                'bubu_app_users',
+  slots:                'bubu_time_slots',
+  bookings:             'bubu_bookings',
+  quotes:               'bubu_quotes',
+  quoteItems:           'bubu_quote_items',
+  noteTemplates:        'bubu_quote_note_templates',
+  checkedNotes:         'bubu_quote_checked_notes',
+  consultants:          'bubu_consultants',
+  slotConsultants:      'bubu_slot_consultants',
+  staffSchedule:        'bubu_staff_schedule_items',
+  quoteSchedule:        'bubu_quote_schedule_items',
+  goals:                'bubu_consultant_goals',
+  notificationSettings: 'bubu_notification_settings',
 } as const;
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -106,6 +107,7 @@ export interface Quote {
   payment_link: string | null;
   payment_status: string | null;
   subtotal: number;
+  discount: number | null;
   total: number;
   deposit: number;
   status: '草稿' | '已發送' | '已確認' | '已取消';
@@ -160,4 +162,14 @@ export interface QuoteScheduleItem {
   label: string;
   category: string;
   sort_order: number;
+}
+
+export interface NotificationSetting {
+  id: string;
+  email: string;
+  label: string | null;
+  notify_booking: boolean;
+  notify_quote: boolean;
+  is_active: boolean;
+  created_at: string;
 }

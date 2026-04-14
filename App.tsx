@@ -46,6 +46,7 @@ import ConsultantProfile from './pages/consultant/ConsultantProfile';
 // Admin extra pages
 import AdminConsultants from './pages/admin/AdminConsultants';
 import AdminUsers from './pages/admin/AdminUsers';
+import AdminSettings from './pages/admin/AdminSettings';
 
 // Member extra pages
 import MemberQuotes from './pages/member/MemberQuotes';
@@ -154,6 +155,7 @@ function App() {
             <Route path="quotes/:quoteId/view" element={<QuoteView />} />
             <Route path="consultants" element={<AdminConsultants />} />
             <Route path="users" element={<SuperAdminRoute><AdminUsers /></SuperAdminRoute>} />
+            <Route path="settings" element={<AdminSettings />} />
           </Route>
 
           {/* Consultant */}

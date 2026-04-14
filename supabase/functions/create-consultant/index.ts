@@ -48,33 +48,36 @@ serve(async (req) => {
     });
     if (consultantErr) throw new Error(`寫入 consultants 失敗：${consultantErr.message}`);
 
-    // 4. Send password-setup email (recovery link)
-    const { data: linkData, error: linkErr } = await supabase.auth.admin.generateLink({
-      type: 'recovery',
-      email,
-    });
-    if (!linkErr && linkData?.properties?.action_link) {
-      // Try sending via Resend if key is available
-      const resendKey = Deno.env.get('RESEND_API_KEY');
-      if (resendKey) {
-        const html = `
+    // 4. Send password-setup email (non-fatal — won't block account creation)
+    try {
+      const { data: linkData, error: linkErr } = await supabase.auth.admin.generateLink({
+        type: 'recovery',
+        email,
+      });
+      if (!linkErr && linkData?.properties?.action_link) {
+        const resendKey = Deno.env.get('RESEND_API_KEY');
+        if (resendKey) {
+          const html = `
 <p>您好，${display_name}！</p>
 <p>步步搬家已為您建立顧問帳號（帳號：${email}）。</p>
 <p>請點擊以下連結設定您的密碼：</p>
 <p><a href="${linkData.properties.action_link}" style="background:#4F46E5;color:white;padding:10px 20px;border-radius:6px;text-decoration:none;">設定密碼</a></p>
 <p style="color:#888;font-size:12px;">此連結 24 小時內有效。若非您本人，請忽略此信。</p>
 <p>步步搬家 團隊</p>`;
-        await fetch('https://api.resend.com/emails', {
-          method: 'POST',
-          headers: { 'Authorization': `Bearer ${resendKey}`, 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            from: 'steps@bubumoving.com.tw',
-            to: email,
-            subject: '【步步搬家】顧問帳號已建立，請設定密碼',
-            html,
-          }),
-        });
+          await fetch('https://api.resend.com/emails', {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${resendKey}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              from: 'steps@bubumoving.com.tw',
+              to: email,
+              subject: '【步步搬家】顧問帳號已建立，請設定密碼',
+              html,
+            }),
+          });
+        }
       }
+    } catch (emailErr) {
+      console.warn('Email send failed (non-fatal):', emailErr);
     }
 
     return new Response(JSON.stringify({ ok: true, user_id: userId }), {

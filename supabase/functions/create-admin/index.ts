@@ -48,43 +48,46 @@ serve(async (req) => {
     });
     if (userErr) throw userErr;
 
-    // 3. 產生密碼設定連結
-    const { data: linkData, error: linkErr } = await supabase.auth.admin.generateLink({
-      type: 'recovery',
-      email,
-    });
-    if (linkErr) throw linkErr;
-    const resetLink = linkData?.properties?.action_link ?? '';
-
-    // 4. 用 Resend 寄邀請信
-    const resendKey = Deno.env.get('RESEND_API_KEY');
-    if (resendKey && resetLink) {
-      const roleText = role === 'admin' ? '最高管理者' : '主管';
-      await fetch('https://api.resend.com/emails', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${resendKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          from: 'noreply@bubumoving.com.tw',
-          to: email,
-          subject: '【步步搬家】您已被邀請為管理帳號',
-          html: `
-            <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:32px;background:#f9fafb;border-radius:12px;">
-              <h2 style="color:#1f2937;margin-bottom:8px;">歡迎加入步步搬家管理團隊</h2>
-              <p style="color:#6b7280;">您好 ${display_name}，</p>
-              <p style="color:#6b7280;">您已被設定為<strong style="color:#374151;">「${roleText}」</strong>角色。</p>
-              <p style="color:#6b7280;">請點擊下方按鈕設定您的登入密碼：</p>
-              <a href="${resetLink}"
-                style="display:inline-block;margin:16px 0;padding:12px 24px;background:#7c3aed;color:white;text-decoration:none;border-radius:8px;font-weight:600;">
-                設定我的密碼
-              </a>
-              <p style="color:#9ca3af;font-size:12px;">此連結有效期為 24 小時。如有問題請聯絡系統管理員。</p>
-            </div>
-          `,
-        }),
+    // 3. 產生密碼設定連結並寄邀請信（非關鍵，失敗不影響帳號建立）
+    try {
+      const { data: linkData, error: linkErr } = await supabase.auth.admin.generateLink({
+        type: 'recovery',
+        email,
       });
+      if (!linkErr && linkData?.properties?.action_link) {
+        const resetLink = linkData.properties.action_link;
+        const resendKey = Deno.env.get('RESEND_API_KEY');
+        if (resendKey) {
+          const roleText = role === 'admin' ? '最高管理者' : '主管';
+          await fetch('https://api.resend.com/emails', {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${resendKey}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              from: 'noreply@bubumoving.com.tw',
+              to: email,
+              subject: '【步步搬家】您已被邀請為管理帳號',
+              html: `
+                <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:32px;background:#f9fafb;border-radius:12px;">
+                  <h2 style="color:#1f2937;margin-bottom:8px;">歡迎加入步步搬家管理團隊</h2>
+                  <p style="color:#6b7280;">您好 ${display_name}，</p>
+                  <p style="color:#6b7280;">您已被設定為<strong style="color:#374151;">「${roleText}」</strong>角色。</p>
+                  <p style="color:#6b7280;">請點擊下方按鈕設定您的登入密碼：</p>
+                  <a href="${resetLink}"
+                    style="display:inline-block;margin:16px 0;padding:12px 24px;background:#7c3aed;color:white;text-decoration:none;border-radius:8px;font-weight:600;">
+                    設定我的密碼
+                  </a>
+                  <p style="color:#9ca3af;font-size:12px;">此連結有效期為 24 小時。如有問題請聯絡系統管理員。</p>
+                </div>
+              `,
+            }),
+          });
+        }
+      }
+    } catch (emailErr) {
+      console.warn('Email send failed (non-fatal):', emailErr);
     }
 
     return new Response(JSON.stringify({ success: true, user_id: userId }), {

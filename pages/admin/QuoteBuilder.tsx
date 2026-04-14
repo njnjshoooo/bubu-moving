@@ -183,6 +183,7 @@ export default function QuoteBuilder() {
     consultant_name: '', consultant_phone: '', internal_notes: '',
   });
   const [deposit, setDeposit] = useState(0);
+  const [discount, setDiscount] = useState(0);
   const [items, setItems] = useState<LineItem[]>([]);
   const [staffItems, setStaffItems] = useState<StaffItemForm[]>([]);
   const [scheduleItems, setScheduleItems] = useState<ScheduleItemForm[]>([]);
@@ -208,6 +209,8 @@ export default function QuoteBuilder() {
 
   // Custom item inline form state: { category, name, price, qty }
   const [customForm, setCustomForm] = useState<{ category: string; name: string; price: string; qty: string } | null>(null);
+  // Custom staff item form state (for 計時人員 +自訂)
+  const [customStaffForm, setCustomStaffForm] = useState<{ name: string; price: string } | null>(null);
 
   // Drag-and-drop refs
   const dragStaffIdx = useRef<number | null>(null);
@@ -265,6 +268,7 @@ export default function QuoteBuilder() {
       setQuoteNumber(data.quote_number);
       setQuoteStatus(data.status);
       setDeposit(data.deposit ?? 0);
+      setDiscount(data.discount ?? 0);
       setForm({
         customer_name: data.customer_name, phone: data.phone,
         email: data.email ?? '', tax_id: data.tax_id ?? '',
@@ -417,7 +421,8 @@ export default function QuoteBuilder() {
     .reduce((sum, i) => sum + i.unit_price * i.quantity, 0);
   const staffTotal = staffSubtotal(staffItems);
   const subtotal = lineItemSubtotal + staffTotal;
-  const balance = Math.max(0, subtotal - deposit);
+  const discountedTotal = Math.max(0, subtotal - discount);
+  const balance = Math.max(0, discountedTotal - deposit);
 
   const catItems = (cat: string) => items.filter(i => i.category === cat);
   const catTotal = (cat: string) => {
@@ -443,7 +448,7 @@ export default function QuoteBuilder() {
 
       const quoteData = {
         quote_number: quoteNumber, booking_id: bookingId ?? null,
-        ...form, subtotal, total: subtotal, deposit,
+        ...form, subtotal, discount, total: discountedTotal, deposit,
         consultant_id: consultantId,
         remark_notes: JSON.stringify(remarkNotes.filter(n => n.trim())),
         status: (quoteStatus === '草稿' ? '草稿' : quoteStatus) as any,
@@ -710,11 +715,16 @@ export default function QuoteBuilder() {
                           {p.price > 0 && <span className="text-gray-400 ml-1">${p.price.toLocaleString()}</span>}
                         </button>
                       ))}
-                      {/* +自訂 button (non-staff categories) */}
-                      {!isStaffCat && (
+                      {/* +自訂 button */}
+                      {!isStaffCat ? (
                         <button onClick={() => setCustomForm({ category: cat, name: '', price: '0', qty: '1' })}
                           className="text-xs bg-amber-50 hover:bg-amber-100 text-amber-700 border border-dashed border-amber-300 px-3 py-1.5 rounded-full transition-all flex items-center gap-1">
                           <Plus size={12} />自訂
+                        </button>
+                      ) : (
+                        <button onClick={() => setCustomStaffForm({ name: '', price: '600' })}
+                          className="text-xs bg-amber-50 hover:bg-amber-100 text-amber-700 border border-dashed border-amber-300 px-3 py-1.5 rounded-full transition-all flex items-center gap-1">
+                          <Plus size={12} />自訂人員
                         </button>
                       )}
                     </div>
@@ -740,6 +750,29 @@ export default function QuoteBuilder() {
                         <button onClick={addCustomItem}
                           className="px-3 py-1.5 bg-amber-500 text-white text-xs rounded-lg hover:bg-amber-600 transition-colors">確認新增</button>
                         <button onClick={() => setCustomForm(null)}
+                          className="px-3 py-1.5 bg-gray-100 text-gray-600 text-xs rounded-lg hover:bg-gray-200 transition-colors">取消</button>
+                      </div>
+                    )}
+
+                    {/* Custom staff item inline form */}
+                    {isStaffCat && customStaffForm !== null && (
+                      <div className="flex flex-wrap gap-2 items-center mb-4 p-3 bg-amber-50 rounded-xl border border-amber-200">
+                        <input value={customStaffForm.name}
+                          onChange={e => setCustomStaffForm(f => f ? { ...f, name: e.target.value } : f)}
+                          placeholder="人員品項名稱（如：司機、油漆師傅）"
+                          className="flex-1 min-w-32 border border-gray-200 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-amber-400" />
+                        <div className="flex items-center gap-1">
+                          <span className="text-xs text-gray-400">時薪 $</span>
+                          <input type="number" value={customStaffForm.price}
+                            onChange={e => setCustomStaffForm(f => f ? { ...f, price: e.target.value } : f)}
+                            className="w-24 border border-gray-200 rounded-lg px-2 py-1.5 text-sm text-right focus:outline-none focus:ring-1 focus:ring-amber-400" />
+                        </div>
+                        <button onClick={() => {
+                          addStaffItem(customStaffForm.name || '自訂人員', parseFloat(customStaffForm.price) || 0);
+                          setCustomStaffForm(null);
+                        }}
+                          className="px-3 py-1.5 bg-amber-500 text-white text-xs rounded-lg hover:bg-amber-600 transition-colors">確認新增</button>
+                        <button onClick={() => setCustomStaffForm(null)}
                           className="px-3 py-1.5 bg-gray-100 text-gray-600 text-xs rounded-lg hover:bg-gray-200 transition-colors">取消</button>
                       </div>
                     )}
@@ -1033,9 +1066,31 @@ export default function QuoteBuilder() {
                 ) : null;
               })}
               <div className="border-t border-gray-100 pt-3 flex justify-between">
-                <span className="font-semibold text-gray-800">合計（含稅）</span>
-                <span className="text-xl font-bold text-brand-600">NT${subtotal.toLocaleString()}</span>
+                <span className="font-semibold text-gray-800">小計</span>
+                <span className={`text-lg font-bold ${discount > 0 ? 'text-gray-400 line-through' : 'text-brand-600'}`}>
+                  NT${subtotal.toLocaleString()}
+                </span>
               </div>
+            </div>
+
+            {/* Discount */}
+            <div className="mt-3 space-y-2">
+              <div className="flex items-center gap-2">
+                <label className="text-xs text-gray-500 w-16 flex-shrink-0">折扣</label>
+                <div className="flex items-center gap-1 flex-1">
+                  <span className="text-xs text-gray-400">NT$</span>
+                  <input type="number" min={0} value={discount}
+                    onChange={e => setDiscount(Math.max(0, +e.target.value))}
+                    placeholder="0"
+                    className="flex-1 text-right text-sm border border-gray-200 rounded-lg px-2 py-1 focus:outline-none focus:ring-1 focus:ring-brand-400" />
+                </div>
+              </div>
+              {discount > 0 && (
+                <div className="flex justify-between bg-brand-50 rounded-lg px-3 py-2">
+                  <span className="font-semibold text-brand-800 text-sm">折扣後合計（含稅）</span>
+                  <span className="text-xl font-bold text-brand-600">NT${discountedTotal.toLocaleString()}</span>
+                </div>
+              )}
             </div>
 
             {/* Deposit / Balance */}

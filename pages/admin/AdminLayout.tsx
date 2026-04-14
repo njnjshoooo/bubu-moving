@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import {
   Truck, LayoutDashboard, Calendar, ClipboardList,
-  FileText, LogOut, Menu, ChevronRight, Users, ShieldCheck
+  FileText, LogOut, Menu, ChevronRight, Users, Settings
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -12,6 +12,7 @@ const navItems = [
   { to: '/admin/bookings', label: '預約單管理', icon: ClipboardList, adminOnly: false },
   { to: '/admin/quotes', label: '報價單', icon: FileText, adminOnly: false },
   { to: '/admin/consultants', label: '帳號管理', icon: Users, adminOnly: false },
+  { to: '/admin/settings', label: '系統設定', icon: Settings, adminOnly: false },
 ];
 
 export default function AdminLayout() {
