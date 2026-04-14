@@ -1,8 +1,26 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
-import { Plus, Trash2, ChevronDown, ChevronUp, Save, Eye, ArrowLeft, Users, CalendarDays, UserCircle, CheckSquare, Square, AlignLeft } from 'lucide-react';
+import { Plus, Trash2, ChevronDown, ChevronUp, Save, Eye, ArrowLeft, Users, CalendarDays, UserCircle, CheckSquare, Square, AlignLeft, MapPin } from 'lucide-react';
 import { supabase, NoteTemplate, T } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
+import { TAIWAN_DISTRICTS, CITIES } from '../../lib/taiwanDistricts';
+
+// ─── Address parse helper ────────────────────────────────────────────────────
+function parseAddress(addr: string): { city: string; district: string; detail: string } {
+  if (!addr) return { city: '', district: '', detail: '' };
+  for (const city of CITIES) {
+    if (addr.startsWith(city)) {
+      const rest = addr.slice(city.length);
+      for (const district of TAIWAN_DISTRICTS[city] ?? []) {
+        if (rest.startsWith(district)) {
+          return { city, district, detail: rest.slice(district.length) };
+        }
+      }
+      return { city, district: '', detail: rest };
+    }
+  }
+  return { city: '', district: '', detail: addr };
+}
 
 // ─── Product Catalog ──────────────────────────────────────────────────────────
 const PRODUCT_CATALOG: Record<string, { name: string; price: number }[]> = {
@@ -36,7 +54,7 @@ const PRODUCT_CATALOG: Record<string, { name: string; price: number }[]> = {
 };
 
 const CATEGORIES = Object.keys(PRODUCT_CATALOG) as Array<keyof typeof PRODUCT_CATALOG>;
-const SCHEDULE_CATEGORIES = ['搬家', '打包', '清運', '其他'];
+const SCHEDULE_CATEGORIES = ['搬運', '整理', '清潔', '其他'];
 const BREAK_OPTIONS = [0, 0.5, 1, 1.5, 2];
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -180,6 +198,14 @@ export default function QuoteBuilder() {
   const [quoteStatus, setQuoteStatus] = useState<string>('草稿');
   const [saveStatus, setSaveStatus] = useState<'success' | 'error' | null>(null);
 
+  // Address parts state (city/district/detail for from and to)
+  const [addrFromCity, setAddrFromCity] = useState('');
+  const [addrFromDistrict, setAddrFromDistrict] = useState('');
+  const [addrFromDetail, setAddrFromDetail] = useState('');
+  const [addrToCity, setAddrToCity] = useState('');
+  const [addrToDistrict, setAddrToDistrict] = useState('');
+  const [addrToDetail, setAddrToDetail] = useState('');
+
   // Custom item inline form state: { category, name, price, qty }
   const [customForm, setCustomForm] = useState<{ category: string; name: string; price: string; qty: string } | null>(null);
 
@@ -196,13 +222,19 @@ export default function QuoteBuilder() {
     if (bookingId) {
       supabase.from(T.bookings).select('*').eq('id', bookingId).single()
         .then(({ data }) => {
-          if (data) setForm(f => ({
-            ...f,
-            customer_name: data.customer_name,
-            phone: data.phone,
-            email: data.email ?? '',
-            address_from: data.address_from ?? '',
-          }));
+          if (data) {
+            const parsed = parseAddress(data.address_from ?? '');
+            setAddrFromCity(parsed.city);
+            setAddrFromDistrict(parsed.district);
+            setAddrFromDetail(parsed.detail);
+            setForm(f => ({
+              ...f,
+              customer_name: data.customer_name,
+              phone: data.phone,
+              email: data.email ?? '',
+              address_from: data.address_from ?? '',
+            }));
+          }
         });
     }
   }, [bookingId]);
@@ -247,6 +279,15 @@ export default function QuoteBuilder() {
         consultant_phone: data.consultant_phone ?? '',
         internal_notes: data.internal_notes ?? '',
       });
+      // Parse existing addresses into city/district/detail parts
+      const pFrom = parseAddress(data.address_from ?? '');
+      setAddrFromCity(pFrom.city);
+      setAddrFromDistrict(pFrom.district);
+      setAddrFromDetail(pFrom.detail);
+      const pTo = parseAddress(data.address_to ?? '');
+      setAddrToCity(pTo.city);
+      setAddrToDistrict(pTo.district);
+      setAddrToDetail(pTo.detail);
       // Load remark_notes (stored as JSON array string)
       try {
         const parsed = JSON.parse(data.remark_notes ?? '[]');
@@ -532,16 +573,55 @@ export default function QuoteBuilder() {
             {(['from', 'to'] as const).map(side => {
               const addrKey = `address_${side}` as const;
               const label = side === 'from' ? '搬遷地址' : '搬入地址';
-              const placeholder = side === 'from' ? '台北市...' : '新北市...';
               const typeKey = `address_${side}_type` as keyof QuoteForm;
               const parkingKey = `address_${side}_parking` as keyof QuoteForm;
               const basementKey = `address_${side}_basement` as keyof QuoteForm;
               const guardKey = `address_${side}_guard` as keyof QuoteForm;
+              const city = side === 'from' ? addrFromCity : addrToCity;
+              const district = side === 'from' ? addrFromDistrict : addrToDistrict;
+              const detail = side === 'from' ? addrFromDetail : addrToDetail;
+              const setCity = side === 'from' ? setAddrFromCity : setAddrToCity;
+              const setDistrict = side === 'from' ? setAddrFromDistrict : setAddrToDistrict;
+              const setDetail = side === 'from' ? setAddrFromDetail : setAddrToDetail;
+              const composeAddr = (c: string, d: string, det: string) =>
+                [c, d, det].filter(Boolean).join('');
               return (
                 <div key={side} className="mt-4 pt-4 border-t border-gray-100">
                   <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">{label}</h3>
-                  <input value={form[addrKey]} onChange={e => setForm({ ...form, [addrKey]: e.target.value })}
-                    placeholder={placeholder}
+                  {/* City / District selectors */}
+                  <div className="grid grid-cols-2 gap-2 mb-2">
+                    <div className="relative">
+                      <MapPin size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                      <select value={city}
+                        onChange={e => {
+                          const c = e.target.value;
+                          setCity(c); setDistrict('');
+                          setForm(f => ({ ...f, [addrKey]: composeAddr(c, '', detail) }));
+                        }}
+                        className="w-full pl-9 pr-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-400 appearance-none bg-white">
+                        <option value="">選擇縣市</option>
+                        {CITIES.map(c => <option key={c} value={c}>{c}</option>)}
+                      </select>
+                    </div>
+                    <select value={district}
+                      onChange={e => {
+                        const d = e.target.value;
+                        setDistrict(d);
+                        setForm(f => ({ ...f, [addrKey]: composeAddr(city, d, detail) }));
+                      }}
+                      disabled={!city}
+                      className="w-full px-3 py-2 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-400 disabled:bg-gray-100 disabled:text-gray-400 appearance-none bg-white">
+                      <option value="">選擇行政區</option>
+                      {(TAIWAN_DISTRICTS[city] ?? []).map(d => <option key={d} value={d}>{d}</option>)}
+                    </select>
+                  </div>
+                  <input value={detail}
+                    onChange={e => {
+                      const det = e.target.value;
+                      setDetail(det);
+                      setForm(f => ({ ...f, [addrKey]: composeAddr(city, district, det) }));
+                    }}
+                    placeholder="詳細地址（路街巷弄號）"
                     className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400 mb-3" />
                   <div className="grid grid-cols-2 gap-x-4 gap-y-3">
                     <div>

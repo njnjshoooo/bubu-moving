@@ -6,9 +6,9 @@ import { supabase, Quote, NoteTemplate, StaffScheduleItem, QuoteScheduleItem, T 
 const CATEGORIES = ['搬家車趟費', '計時人員', '包材費'];
 
 const CAT_COLORS: Record<string, string> = {
-  '搬家': '#3B82F6',
-  '打包': '#10B981',
-  '清運': '#F59E0B',
+  '搬運': '#3B82F6',
+  '整理': '#10B981',
+  '清潔': '#F59E0B',
   '其他': '#8B5CF6',
 };
 
@@ -133,6 +133,14 @@ export default function QuoteView() {
 
   const hasSchedule = scheduleItems.length > 0;
   const hasStaff = staffItems.length > 0;
+
+  // Global time range for unified Gantt density across all dates
+  const allScheduleMins = scheduleItems.flatMap(s => [toMin(s.start_time), toMin(s.end_time)]);
+  const globalDayStart = allScheduleMins.length > 0 ? Math.min(...allScheduleMins) : 8 * 60;
+  const globalDayEnd = allScheduleMins.length > 0 ? Math.max(...allScheduleMins) : 18 * 60;
+  const globalSpan = Math.max(globalDayEnd - globalDayStart, 60);
+  const globalHourLabels: number[] = [];
+  for (let m = Math.floor(globalDayStart / 60) * 60; m <= globalDayEnd; m += 60) globalHourLabels.push(m);
   const deposit = quote.deposit ?? 0;
   const balance = Math.max(0, quote.total - deposit);
 
@@ -350,18 +358,6 @@ export default function QuoteView() {
           )}
         </div>
 
-        {/* Payment Info */}
-        <div className="mt-8 border-t border-gray-100 pt-6">
-          <h3 className="font-semibold text-gray-800 mb-3 text-sm">匯款資訊</h3>
-          <div className="bg-gray-50 rounded-xl p-4 text-sm text-gray-700 space-y-1">
-            <p>銀行：國泰世華商業銀行（013）</p>
-            <p>分行：信義分行（2490）</p>
-            <p>帳號：249-03-000000-0（請填入正確帳號）</p>
-            <p>戶名：居家整聊股份有限公司</p>
-            <p className="text-xs text-gray-400 mt-2">※ 匯款後請將收據截圖傳送給您的服務顧問</p>
-          </div>
-        </div>
-
         {/* ── Schedule Table ── */}
         {hasSchedule && (
           <div className="mt-8">
@@ -397,44 +393,34 @@ export default function QuoteView() {
             {/* ── CSS Gantt Chart (packed rows) ── */}
             <h3 className="font-semibold text-gray-800 mb-3 text-sm">時程甘特圖</h3>
             <div className="space-y-4">
+              {/* Shared hour axis */}
+              <div className="relative mb-1" style={{ height: '16px' }}>
+                {globalHourLabels.map(m => {
+                  const pct = ((m - globalDayStart) / globalSpan) * 100;
+                  if (pct < 0 || pct > 100) return null;
+                  return (
+                    <span key={m} className="absolute text-xs text-gray-400 -translate-x-1/2"
+                      style={{ left: `${pct}%` }}>
+                      {String(Math.floor(m / 60)).padStart(2, '0')}:{String(m % 60).padStart(2, '0')}
+                    </span>
+                  );
+                })}
+              </div>
               {scheduleDates.map(date => {
                 const dayItems = schedByDate[date];
-                const allMins = dayItems.flatMap(s => [toMin(s.start_time), toMin(s.end_time)]);
-                const dayStart = Math.min(...allMins);
-                const dayEnd = Math.max(...allMins);
-                const span = Math.max(dayEnd - dayStart, 60);
-
-                // Time labels (every hour)
-                const hourLabels: number[] = [];
-                for (let m = Math.floor(dayStart / 60) * 60; m <= dayEnd; m += 60) hourLabels.push(m);
-
-                // Pack non-overlapping items into same row
                 const packedRows = packIntoRows(dayItems);
                 const totalHeight = packedRows.length * 32 + 8;
 
                 return (
                   <div key={date}>
                     <p className="text-xs font-semibold text-gray-600 mb-1">{date}</p>
-                    {/* Hour axis */}
-                    <div className="relative mb-1" style={{ height: '16px' }}>
-                      {hourLabels.map(m => {
-                        const pct = ((m - dayStart) / span) * 100;
-                        if (pct < 0 || pct > 100) return null;
-                        return (
-                          <span key={m} className="absolute text-xs text-gray-400 -translate-x-1/2"
-                            style={{ left: `${pct}%` }}>
-                            {String(Math.floor(m / 60)).padStart(2, '0')}:{String(m % 60).padStart(2, '0')}
-                          </span>
-                        );
-                      })}
-                    </div>
-                    {/* Gantt rows (packed) */}
+                    {/* Gantt rows (packed), using global time scale */}
                     <div className="relative bg-gray-100 rounded-lg overflow-hidden"
                       style={{ height: `${totalHeight}px` }}>
                       {packedRows.map((row, rowIdx) =>
                         row.map(s => {
-                          const left = ((toMin(s.start_time) - dayStart) / span) * 100;
-                          const width = Math.max(((toMin(s.end_time) - toMin(s.start_time)) / span) * 100, 2);
+                          const left = ((toMin(s.start_time) - globalDayStart) / globalSpan) * 100;
+                          const width = Math.max(((toMin(s.end_time) - toMin(s.start_time)) / globalSpan) * 100, 2);
                           const color = CAT_COLORS[s.category] ?? '#6B7280';
                           return (
                             <div key={s.id}

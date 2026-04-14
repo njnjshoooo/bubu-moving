@@ -15,13 +15,13 @@ serve(async (req) => {
     const { email, display_name, role } = await req.json();
 
     if (!email || !display_name || !role) {
-      return new Response(JSON.stringify({ error: '缺少必要欄位' }), {
-        status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      return new Response(JSON.stringify({ ok: false, error: '缺少必要欄位' }), {
+        status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
     if (!['admin', 'manager'].includes(role)) {
-      return new Response(JSON.stringify({ error: '無效的角色' }), {
-        status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      return new Response(JSON.stringify({ ok: false, error: '無效的角色' }), {
+        status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
@@ -93,8 +93,8 @@ serve(async (req) => {
 
   } catch (err: any) {
     console.error('create-admin error:', err);
-    return new Response(JSON.stringify({ error: err.message ?? '建立失敗' }), {
-      status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    return new Response(JSON.stringify({ ok: false, error: err.message ?? '建立失敗' }), {
+      status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
 });

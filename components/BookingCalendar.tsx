@@ -378,7 +378,7 @@ export default function BookingCalendar() {
                     className="w-full bg-brand-500 hover:bg-brand-600 text-white font-semibold py-4 rounded-xl transition-all disabled:opacity-60 text-sm">
                     {submitting ? '預約中...' : isWaitlist ? '加入候補名單 →' : '確認預約 →'}
                   </button>
-                  <p className="text-xs text-gray-400 text-center">預約後我們將在 24 小時內電話確認</p>
+                  <p className="text-xs text-gray-400 text-center">預約後若需要取消或修改預約時間，請直接於下方 查詢 / 修改預約 區修改</p>
                 </form>
               </div>
             )}
@@ -389,7 +389,7 @@ export default function BookingCalendar() {
         <div className="mt-16 border-t border-gray-100 pt-12">
           <div className="max-w-lg mx-auto">
             <div className="text-center mb-6">
-              <h3 className="text-lg font-semibold text-gray-800">查詢 / 取消預約</h3>
+              <h3 className="text-lg font-semibold text-gray-800">查詢 / 修改預約</h3>
               <p className="text-sm text-gray-500 mt-1">輸入預約時的姓名與電話查詢您的預約記錄</p>
             </div>
             <form onSubmit={handleLookup} className="flex gap-2 mb-4 flex-wrap sm:flex-nowrap">

@@ -119,9 +119,9 @@ const Estimation: React.FC<EstimationProps> = ({ onEstimate }) => {
       totalCost: result.totalCost
     });
 
-    const contactSection = document.getElementById('contact');
-    if (contactSection) {
-      contactSection.scrollIntoView({ behavior: 'smooth' });
+    const bookingSection = document.getElementById('booking');
+    if (bookingSection) {
+      bookingSection.scrollIntoView({ behavior: 'smooth' });
     }
   };
 
@@ -327,7 +327,7 @@ const Estimation: React.FC<EstimationProps> = ({ onEstimate }) => {
                 <h4 className="text-xl font-bold mb-1 opacity-90">預估費用總計</h4>
                 <div className="flex items-baseline gap-2">
                     <span className="text-5xl font-bold">${result.totalCost.toLocaleString()}</span>
-                    <span className="text-brand-200 text-sm">(未稅)</span>
+                    <span className="text-brand-200 text-sm">(含稅)</span>
                 </div>
             </div>
 
@@ -352,7 +352,7 @@ const Estimation: React.FC<EstimationProps> = ({ onEstimate }) => {
                             <Users className="w-5 h-5 text-white" />
                         </div>
                         <div>
-                            <p className="font-bold">搬運技師</p>
+                            <p className="font-bold">打包上架專員</p>
                             <p className="text-brand-200 text-xs">建議配置：{result.people} 人</p>
                         </div>
                     </div>
@@ -365,7 +365,7 @@ const Estimation: React.FC<EstimationProps> = ({ onEstimate }) => {
                             <Users className="w-5 h-5 text-white" />
                         </div>
                         <div>
-                            <p className="font-bold">搬運技師</p>
+                            <p className="font-bold">打包上架專員</p>
                             <p className="text-brand-200 text-xs">自助搬家不含人力</p>
                         </div>
                     </div>

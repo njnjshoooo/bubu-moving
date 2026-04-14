@@ -81,8 +81,8 @@ serve(async (req) => {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   } catch (e: any) {
-    return new Response(JSON.stringify({ error: e.message }), {
-      status: 400,
+    return new Response(JSON.stringify({ ok: false, error: e.message ?? '建立失敗' }), {
+      status: 200,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }

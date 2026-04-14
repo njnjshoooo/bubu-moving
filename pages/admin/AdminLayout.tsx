@@ -9,10 +9,9 @@ import { useAuth } from '../../contexts/AuthContext';
 const navItems = [
   { to: '/admin', label: '儀表板', icon: LayoutDashboard, end: true, adminOnly: false },
   { to: '/admin/calendar', label: '行事曆管理', icon: Calendar, adminOnly: false },
-  { to: '/admin/bookings', label: '預約管理', icon: ClipboardList, adminOnly: false },
+  { to: '/admin/bookings', label: '預約單管理', icon: ClipboardList, adminOnly: false },
   { to: '/admin/quotes', label: '報價單', icon: FileText, adminOnly: false },
-  { to: '/admin/consultants', label: '顧問管理', icon: Users, adminOnly: false },
-  { to: '/admin/users', label: '用戶管理', icon: ShieldCheck, adminOnly: true },
+  { to: '/admin/consultants', label: '帳號管理', icon: Users, adminOnly: false },
 ];
 
 export default function AdminLayout() {
