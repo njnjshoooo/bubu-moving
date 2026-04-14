@@ -34,8 +34,8 @@ serve(async (req) => {
     if (qErr || !quote) throw new Error('Quote not found');
     if (!quote.email) throw new Error('Quote has no email address');
 
-    // Build items HTML
-    const CATS = ['搬家車趟費', '打包計時人員', '包材費'];
+    // Build items HTML — use current category name '計時人員'
+    const CATS = ['搬家車趟費', '計時人員', '包材費'];
     const itemsHtml = CATS.map(cat => {
       const catItems = (quote.quote_items ?? []).filter((i: any) => i.category === cat);
       if (catItems.length === 0) return '';
@@ -97,6 +97,30 @@ serve(async (req) => {
         ${notes.map((n: any) => `<li>${n.content}</li>`).join('')}
       </ol>` : '';
 
+    // Discount / Total section
+    const discount = quote.discount ?? 0;
+    const totalHtml = discount > 0 ? `
+      <div style="background:#4F46E5;color:white;border-radius:10px;padding:20px;margin:24px 0;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;padding-bottom:10px;border-bottom:1px solid rgba(255,255,255,0.25);">
+          <p style="margin:0;font-size:13px;opacity:0.75;">原價</p>
+          <p style="margin:0;font-size:18px;opacity:0.6;text-decoration:line-through;">NT$${(quote.subtotal ?? quote.total).toLocaleString()}</p>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <div>
+            <p style="margin:0;font-size:14px;opacity:0.85;">折扣後金額（含稅）</p>
+            <p style="margin:4px 0 0;font-size:12px;opacity:0.65;">折扣 NT$${discount.toLocaleString()}</p>
+          </div>
+          <p style="font-size:28px;font-weight:800;margin:0;">NT$${quote.total.toLocaleString()}</p>
+        </div>
+      </div>` : `
+      <div style="background:#4F46E5;color:white;border-radius:10px;padding:20px;display:flex;justify-content:space-between;align-items:center;margin:24px 0;">
+        <div>
+          <p style="margin:0;font-size:14px;opacity:0.8;">合計金額（含稅）</p>
+          <p style="margin:4px 0 0;font-size:12px;opacity:0.6;">以上金額均為含稅報價</p>
+        </div>
+        <p style="font-size:28px;font-weight:800;margin:0;">NT$${quote.total.toLocaleString()}</p>
+      </div>`;
+
     const html = `
 <!DOCTYPE html>
 <html>
@@ -138,14 +162,7 @@ serve(async (req) => {
 
       ${staffHtml}
 
-      <!-- Total -->
-      <div style="background:#4F46E5;color:white;border-radius:10px;padding:20px;display:flex;justify-content:space-between;align-items:center;margin:24px 0;">
-        <div>
-          <p style="margin:0;font-size:14px;opacity:0.8;">合計金額（含稅）</p>
-          <p style="margin:4px 0 0;font-size:12px;opacity:0.6;">以上金額均為含稅報價</p>
-        </div>
-        <p style="font-size:28px;font-weight:800;margin:0;">NT$${quote.total.toLocaleString()}</p>
-      </div>
+      ${totalHtml}
 
       ${notesHtml}
 
@@ -163,15 +180,28 @@ serve(async (req) => {
     const resendKey = Deno.env.get('RESEND_API_KEY');
     if (!resendKey) throw new Error('RESEND_API_KEY not set');
 
+    // CC to admin notification emails (notify_quote = true, is_active = true)
+    const { data: notifSettings } = await supabase
+      .from('bubu_notification_settings')
+      .select('email')
+      .eq('notify_quote', true)
+      .eq('is_active', true);
+    const ccEmails = (notifSettings ?? [])
+      .map((s: any) => s.email as string)
+      .filter((e: string) => e !== quote.email);
+
+    const emailBody: Record<string, any> = {
+      from: 'steps@bubumoving.com.tw',
+      to: quote.email,
+      subject: `【步步搬家】報價單 ${quote.quote_number}`,
+      html,
+    };
+    if (ccEmails.length > 0) emailBody.cc = ccEmails;
+
     const emailRes = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: { 'Authorization': `Bearer ${resendKey}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        from: 'steps@bubumoving.com.tw',
-        to: quote.email,
-        subject: `【步步搬家】報價單 ${quote.quote_number}`,
-        html,
-      }),
+      body: JSON.stringify(emailBody),
     });
 
     if (!emailRes.ok) {
@@ -183,8 +213,9 @@ serve(async (req) => {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   } catch (e: any) {
-    return new Response(JSON.stringify({ error: e.message }), {
-      status: 400,
+    // Always return HTTP 200 so frontend can read the error body
+    return new Response(JSON.stringify({ ok: false, error: e.message }), {
+      status: 200,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }

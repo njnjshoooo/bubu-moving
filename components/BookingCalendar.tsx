@@ -20,6 +20,7 @@ interface BookingForm {
 interface LookupBooking {
   id: string;
   status: string;
+  email: string | null;
   address_from: string | null;
   time_slots?: { date: string; start_time: string; end_time: string } | null;
 }
@@ -142,7 +143,7 @@ export default function BookingCalendar() {
     setLookupError('');
     setLookupResults([]);
     const { data, error: err } = await supabase.from(T.bookings)
-      .select(`id, status, address_from, is_waitlist, time_slots:${T.slots}(date, start_time, end_time)`)
+      .select(`id, status, email, address_from, is_waitlist, time_slots:${T.slots}(date, start_time, end_time)`)
       .eq('customer_name', lookupName.trim())
       .eq('phone', lookupPhone.trim())
       .order('created_at', { ascending: false })
@@ -158,6 +159,15 @@ export default function BookingCalendar() {
   const handleCancel = async (bookingId: string) => {
     setCancellingId(bookingId);
     await supabase.from(T.bookings).update({ status: '已取消' }).eq('id', bookingId);
+    // 寄取消確認信（非關鍵，失敗不影響主流程）
+    const booking = lookupResults.find(b => b.id === bookingId);
+    if (booking?.email) {
+      try {
+        await supabase.functions.invoke('send-booking-email', {
+          body: { booking_id: bookingId, event_type: 'booking_cancelled' },
+        });
+      } catch (_) { /* ignore */ }
+    }
     setLookupResults(prev => prev.map(b => b.id === bookingId ? { ...b, status: '已取消' } : b));
     setCancellingId(null);
   };
