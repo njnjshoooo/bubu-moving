@@ -68,7 +68,7 @@ serve(async (req) => {
             method: 'POST',
             headers: { 'Authorization': `Bearer ${resendKey}`, 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              from: 'steps@bubumoving.com.tw',
+              from: 'steps@bubu-moving.com.tw',
               to: email,
               subject: '【步步搬家】顧問帳號已建立，請設定密碼',
               html,

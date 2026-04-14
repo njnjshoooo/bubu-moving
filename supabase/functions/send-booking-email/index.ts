@@ -119,7 +119,7 @@ serve(async (req) => {
     if (!resendKey) throw new Error('RESEND_API_KEY not set');
 
     const emailBody: Record<string, any> = {
-      from: 'steps@bubumoving.com.tw',
+      from: 'steps@bubu-moving.com.tw',
       to: booking.email,
       subject: `【步步搬家】${subjectSuffix}`,
       html,

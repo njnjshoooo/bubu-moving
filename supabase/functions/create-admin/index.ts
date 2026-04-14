@@ -66,7 +66,7 @@ serve(async (req) => {
               'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-              from: 'noreply@bubumoving.com.tw',
+              from: 'noreply@bubu-moving.com.tw',
               to: email,
               subject: '【步步搬家】您已被邀請為管理帳號',
               html: `

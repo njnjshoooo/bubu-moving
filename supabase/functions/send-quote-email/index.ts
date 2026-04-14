@@ -191,7 +191,7 @@ serve(async (req) => {
       .filter((e: string) => e !== quote.email);
 
     const emailBody: Record<string, any> = {
-      from: 'steps@bubumoving.com.tw',
+      from: 'steps@bubu-moving.com.tw',
       to: quote.email,
       subject: `【步步搬家】報價單 ${quote.quote_number}`,
       html,
