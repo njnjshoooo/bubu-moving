@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Plus, Eye, Edit, Search } from 'lucide-react';
+import { Plus, Eye, Edit, Search, ClipboardList } from 'lucide-react';
 import { supabase, Quote, Consultant, T } from '../../lib/supabase';
 
 const statusColor: Record<string, string> = {
@@ -117,7 +117,7 @@ export default function AdminQuoteList() {
                     </td>
                     <td className="px-4 py-3 text-gray-500 text-xs">{new Date(q.created_at).toLocaleDateString('zh-TW')}</td>
                     <td className="px-4 py-3">
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-2 flex-wrap">
                         <Link to={`/admin/quotes/${q.id}/view`}
                           className="inline-flex items-center gap-1 text-xs bg-brand-50 text-brand-600 hover:bg-brand-100 px-2.5 py-1.5 rounded-lg transition-colors">
                           <Eye size={13} />預覽
@@ -125,6 +125,10 @@ export default function AdminQuoteList() {
                         <Link to={`/admin/quotes/${q.id}`}
                           className="inline-flex items-center gap-1 text-xs bg-gray-100 text-gray-600 hover:bg-gray-200 px-2.5 py-1.5 rounded-lg transition-colors">
                           <Edit size={13} />編輯
+                        </Link>
+                        <Link to={`/admin/settlement/${q.id}`}
+                          className="inline-flex items-center gap-1 text-xs bg-green-50 text-green-700 hover:bg-green-100 px-2.5 py-1.5 rounded-lg transition-colors">
+                          <ClipboardList size={13} />結算表
                         </Link>
                       </div>
                     </td>

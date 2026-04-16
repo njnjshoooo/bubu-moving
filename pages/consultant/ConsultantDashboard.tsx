@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { TrendingUp, FileText, DollarSign, ClipboardList, Target } from 'lucide-react';
+import { TrendingUp, FileText, DollarSign, ClipboardList, Target, ReceiptText } from 'lucide-react';
 import { supabase, T } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -194,17 +194,25 @@ export default function ConsultantDashboard() {
         ) : (
           <div className="divide-y divide-gray-50">
             {recentQuotes.map(q => (
-              <div key={q.id} className="px-5 py-4 flex items-center justify-between">
-                <div>
+              <div key={q.id} className="px-5 py-4 flex items-center justify-between gap-3">
+                <div className="min-w-0">
                   <p className="font-medium text-gray-800 text-sm">{q.customer_name}</p>
                   <p className="text-xs text-gray-400 font-mono">{q.quote_number}</p>
                   <p className="text-xs text-gray-400">{new Date(q.created_at).toLocaleDateString('zh-TW')}</p>
                 </div>
-                <div className="text-right">
-                  <p className="font-semibold text-brand-600 text-sm">NT${q.total.toLocaleString()}</p>
-                  <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${statusColor[q.status]}`}>
-                    {q.status}
-                  </span>
+                <div className="flex items-center gap-3 shrink-0">
+                  <div className="text-right">
+                    <p className="font-semibold text-brand-600 text-sm">NT${q.total.toLocaleString()}</p>
+                    <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${statusColor[q.status]}`}>
+                      {q.status}
+                    </span>
+                  </div>
+                  <Link
+                    to={`/consultant/settlement/${q.id}`}
+                    className="inline-flex items-center gap-1 text-xs bg-green-50 text-green-700 hover:bg-green-100 px-2.5 py-1.5 rounded-lg transition-colors whitespace-nowrap"
+                  >
+                    <ReceiptText size={12} />結算表
+                  </Link>
                 </div>
               </div>
             ))}

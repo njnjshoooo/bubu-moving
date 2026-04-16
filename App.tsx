@@ -50,6 +50,7 @@ import AdminSettings from './pages/admin/AdminSettings';
 import AdminProducts from './pages/admin/AdminProducts';
 import AdminOrders from './pages/admin/AdminOrders';
 import AdminCaseStudies from './pages/admin/AdminCaseStudies';
+import SettlementSheet from './pages/admin/SettlementSheet';
 
 // Member extra pages
 import MemberQuotes from './pages/member/MemberQuotes';
@@ -160,6 +161,7 @@ function App() {
             <Route path="products" element={<AdminProducts />} />
             <Route path="orders" element={<AdminOrders />} />
             <Route path="cases" element={<AdminCaseStudies />} />
+            <Route path="settlement/:quoteId" element={<SettlementSheet />} />
             <Route path="consultants" element={<AdminConsultants />} />
             <Route path="users" element={<SuperAdminRoute><AdminUsers /></SuperAdminRoute>} />
             <Route path="settings" element={<AdminSettings />} />
@@ -167,6 +169,7 @@ function App() {
 
           {/* Consultant */}
           <Route path="/consultant" element={<ConsultantRoute><ConsultantLayout /></ConsultantRoute>}>
+            <Route path="settlement/:quoteId" element={<SettlementSheet />} />
             <Route index element={<ConsultantSchedule />} />
             <Route path="dashboard" element={<ConsultantDashboard />} />
             <Route path="profile" element={<ConsultantProfile />} />

@@ -24,6 +24,8 @@ export const T = {
   products:             'bubu_products',
   orders:               'bubu_orders',
   caseStudies:          'bubu_case_studies',
+  settlementSheets:     'bubu_settlement_sheets',
+  settlementItems:      'bubu_settlement_items',
 } as const;
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -238,4 +240,28 @@ export interface CaseStudy {
   is_visible: boolean;
   sort_order: number;
   created_at: string;
+}
+
+export interface SettlementSheet {
+  id: string;
+  quote_id: string | null;
+  customer_name: string;
+  consultant_name: string;
+  move_datetime: string;
+  address_old: string;
+  address_new: string;
+  notes: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface SettlementItem {
+  id: string;
+  sheet_id: string;
+  section: 'work' | 'supply';
+  name: string;
+  unit_price: number;
+  estimated_qty: number;
+  actual_qty: number;
+  sort_order: number;
 }
