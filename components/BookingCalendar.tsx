@@ -42,6 +42,7 @@ export default function BookingCalendar() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [isWaitlist, setIsWaitlist] = useState(false);
+  const [selectedDateFilter, setSelectedDateFilter] = useState<string | null>(null);
 
   // Lookup / Cancel
   const [lookupName, setLookupName] = useState('');
@@ -251,12 +252,14 @@ export default function BookingCalendar() {
                 const isPast = ds < today;
                 const hasSlots = availableSlots.length > 0;
                 const isSelected = selectedSlot?.date === ds;
+                const isDateFiltered = selectedDateFilter === ds;
                 return (
                   <button key={d} disabled={isPast || !hasSlots}
-                    onClick={() => { setSelectedSlot(null); }}
+                    onClick={() => { setSelectedSlot(null); setSelectedDateFilter(ds); }}
                     className={`aspect-square rounded-xl text-sm flex flex-col items-center justify-center transition-all ${
                       isPast ? 'text-gray-200 cursor-not-allowed' :
                       isSelected ? 'bg-brand-500 text-white font-medium' :
+                      isDateFiltered ? 'bg-brand-100 text-brand-700 font-medium ring-2 ring-brand-400' :
                       hasSlots ? 'hover:bg-brand-50 text-gray-700 font-medium' :
                       'text-gray-400 cursor-not-allowed'
                     }`}
@@ -270,40 +273,55 @@ export default function BookingCalendar() {
 
             {/* Slot List */}
             <div className="space-y-2">
-              <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">可預約時段</p>
-              {slots.filter(s => getSlotStatus(s).available).length === 0 ? (
-                <p className="text-sm text-gray-400 text-center py-4">目前無開放時段，請稍後再查詢</p>
-              ) : (
-                slots.filter(s => getSlotStatus(s).available).slice(0, 8).map(slot => {
-                  const status = getSlotStatus(slot);
-                  return (
-                    <button key={slot.id} onClick={() => handleSelectSlot(slot)}
-                      className={`w-full flex items-center justify-between p-3 rounded-xl border transition-all text-left ${
-                        selectedSlot?.id === slot.id
-                          ? 'border-brand-500 bg-brand-50'
-                          : 'border-gray-200 hover:border-brand-300 hover:bg-brand-50/50'
-                      }`}
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${selectedSlot?.id === slot.id ? 'bg-brand-500' : 'bg-gray-100'}`}>
-                          <Calendar size={15} className={selectedSlot?.id === slot.id ? 'text-white' : 'text-gray-500'} />
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">
+                  {selectedDateFilter ? `${selectedDateFilter} 可預約時段` : '近期可預約時段'}
+                </p>
+                {selectedDateFilter && (
+                  <button onClick={() => setSelectedDateFilter(null)}
+                    className="text-xs text-brand-600 hover:underline">全部時段</button>
+                )}
+              </div>
+              {(() => {
+                const filteredSlots = selectedDateFilter
+                  ? slots.filter(s => s.date === selectedDateFilter && getSlotStatus(s).available)
+                  : slots.filter(s => getSlotStatus(s).available).slice(0, 3);
+                return filteredSlots.length === 0 ? (
+                  <p className="text-sm text-gray-400 text-center py-4">
+                    {selectedDateFilter ? '此日無可預約時段' : '目前無開放時段，請稍後再查詢'}
+                  </p>
+                ) : (
+                  filteredSlots.map(slot => {
+                    const status = getSlotStatus(slot);
+                    return (
+                      <button key={slot.id} onClick={() => handleSelectSlot(slot)}
+                        className={`w-full flex items-center justify-between p-3 rounded-xl border transition-all text-left ${
+                          selectedSlot?.id === slot.id
+                            ? 'border-brand-500 bg-brand-50'
+                            : 'border-gray-200 hover:border-brand-300 hover:bg-brand-50/50'
+                        }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${selectedSlot?.id === slot.id ? 'bg-brand-500' : 'bg-gray-100'}`}>
+                            <Calendar size={15} className={selectedSlot?.id === slot.id ? 'text-white' : 'text-gray-500'} />
+                          </div>
+                          <div>
+                            <p className="text-sm font-medium text-gray-800">{slot.date}</p>
+                            <p className="text-xs text-gray-500 flex items-center gap-1">
+                              <Clock size={11} />{slot.start_time.slice(0, 5)} – {slot.end_time.slice(0, 5)}
+                            </p>
+                          </div>
                         </div>
-                        <div>
-                          <p className="text-sm font-medium text-gray-800">{slot.date}</p>
-                          <p className="text-xs text-gray-500 flex items-center gap-1">
-                            <Clock size={11} />{slot.start_time.slice(0, 5)} – {slot.end_time.slice(0, 5)}
-                          </p>
-                        </div>
-                      </div>
-                      {status.isWaitlist ? (
-                        <span className="text-xs text-amber-600 bg-amber-50 px-2 py-1 rounded-full">候補 {status.waitlistPos} 號</span>
-                      ) : (
-                        <span className="text-xs text-green-600 bg-green-50 px-2 py-1 rounded-full">剩 {status.remaining} 名</span>
-                      )}
-                    </button>
-                  );
-                })
-              )}
+                        {status.isWaitlist ? (
+                          <span className="text-xs text-amber-600 bg-amber-50 px-2 py-1 rounded-full">候補 {status.waitlistPos} 號</span>
+                        ) : (
+                          <span className="text-xs text-green-600 bg-green-50 px-2 py-1 rounded-full">剩 {status.remaining} 名</span>
+                        )}
+                      </button>
+                    );
+                  })
+                );
+              })()}
             </div>
           </div>
 

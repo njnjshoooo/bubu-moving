@@ -40,9 +40,12 @@ const Process: React.FC = () => {
         </div>
         
         <div className="mt-16 text-center">
-             <a href="#contact" className="inline-block px-10 py-4 bg-brand-600 text-white font-bold rounded-lg shadow-lg hover:bg-brand-700 hover:shadow-xl transition-all transform hover:-translate-y-1">
+             <button
+               onClick={() => document.getElementById('booking')?.scrollIntoView({ behavior: 'smooth' })}
+               className="inline-block px-10 py-4 bg-brand-600 text-white font-bold rounded-lg shadow-lg hover:bg-brand-700 hover:shadow-xl transition-all transform hover:-translate-y-1 cursor-pointer"
+             >
                 開始第一步：預約諮詢
-             </a>
+             </button>
         </div>
       </div>
     </section>

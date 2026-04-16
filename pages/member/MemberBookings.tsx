@@ -12,18 +12,21 @@ const statusColor: Record<string, string> = {
 };
 
 export default function MemberBookings() {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const [bookings, setBookings] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (!user) return;
+    const filters = [`user_id.eq.${user.id}`];
+    if (user.email) filters.push(`email.eq.${user.email}`);
+    if (profile?.phone) filters.push(`phone.eq.${profile.phone}`);
     supabase.from(T.bookings)
       .select(`*, time_slots:${T.slots}(date, start_time, end_time)`)
-      .eq('user_id', user.id)
+      .or(filters.join(','))
       .order('created_at', { ascending: false })
       .then(({ data }) => { setBookings(data ?? []); setLoading(false); });
-  }, [user]);
+  }, [user, profile]);
 
   if (loading) return <div className="text-center py-12 text-gray-400">載入中...</div>;
 

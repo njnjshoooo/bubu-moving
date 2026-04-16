@@ -106,6 +106,8 @@ interface QuoteForm {
   consultant_name: string;
   consultant_phone: string;
   internal_notes: string;
+  payment_link: string;
+  payment_status: string;
 }
 
 // ─── 24h Time Input Component ─────────────────────────────────────────────────
@@ -145,6 +147,20 @@ const TimeInput: React.FC<{
   );
 };
 
+// ─── Numeric Input Helper ────────────────────────────────────────────────────
+const numericInputProps = (value: number, onChange: (v: number) => void, min = 0) => ({
+  type: 'text' as const,
+  inputMode: 'numeric' as const,
+  value: value === 0 ? '' : String(value),
+  onChange: (e: React.ChangeEvent<HTMLInputElement>) => {
+    const cleaned = e.target.value.replace(/^0+(?=\d)/, '').replace(/[^\d]/g, '');
+    onChange(Math.max(min, parseInt(cleaned) || 0));
+  },
+  onBlur: (e: React.FocusEvent<HTMLInputElement>) => {
+    if (!e.target.value || parseInt(e.target.value) < min) onChange(min);
+  },
+});
+
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 const calcHours = (start: string, end: string, breakHours = 0): number => {
   const [sh, sm] = start.split(':').map(Number);
@@ -181,6 +197,7 @@ export default function QuoteBuilder() {
     address_from: '', address_from_type: '', address_from_parking: '', address_from_basement: '', address_from_guard: '',
     address_to: '', address_to_type: '', address_to_parking: '', address_to_basement: '', address_to_guard: '',
     consultant_name: '', consultant_phone: '', internal_notes: '',
+    payment_link: '', payment_status: '',
   });
   const [deposit, setDeposit] = useState(0);
   const [discount, setDiscount] = useState(0);
@@ -282,6 +299,8 @@ export default function QuoteBuilder() {
         consultant_name: data.consultant_name ?? '',
         consultant_phone: data.consultant_phone ?? '',
         internal_notes: data.internal_notes ?? '',
+        payment_link: data.payment_link ?? '',
+        payment_status: data.payment_status ?? '',
       });
       // Parse existing addresses into city/district/detail parts
       const pFrom = parseAddress(data.address_from ?? '');
@@ -836,14 +855,12 @@ export default function QuoteBuilder() {
                                       ))}
                                     </select>
                                     {/* 人數 */}
-                                    <input type="number" min={1} value={item.person_count}
-                                      onChange={e => updateStaffItem(idx, 'person_count', +e.target.value)}
+                                    <input {...numericInputProps(item.person_count, v => updateStaffItem(idx, 'person_count', v), 1)}
                                       className="bg-white border border-gray-200 rounded-lg px-1 py-1 text-xs text-center focus:outline-none focus:ring-1 focus:ring-brand-400" />
                                     {/* 時薪 + 小計 */}
                                     <div className="flex items-center justify-end gap-0.5">
                                       <span className="text-xs text-gray-400">$</span>
-                                      <input type="number" value={item.unit_price}
-                                        onChange={e => updateStaffItem(idx, 'unit_price', +e.target.value)}
+                                      <input {...numericInputProps(item.unit_price, v => updateStaffItem(idx, 'unit_price', v))}
                                         className="w-16 text-right text-xs bg-white border border-gray-200 rounded-lg px-1 py-1 focus:outline-none focus:ring-1 focus:ring-brand-400" />
                                     </div>
                                     <button onClick={() => removeStaffItem(idx)} className="flex justify-center p-1 hover:text-red-500 transition-colors">
@@ -875,7 +892,7 @@ export default function QuoteBuilder() {
                       <>
                         {catItems(cat).length > 0 && (
                           <div className="space-y-2 mb-4">
-                            <div className="grid grid-cols-12 text-xs text-gray-400 font-medium px-2 gap-2">
+                            <div className="hidden sm:grid grid-cols-12 text-xs text-gray-400 font-medium px-2 gap-2">
                               <span className="col-span-4">品項</span>
                               <span className="col-span-3 text-right">單價</span>
                               <span className="col-span-2 text-center">數量</span>
@@ -883,29 +900,57 @@ export default function QuoteBuilder() {
                               <span className="col-span-1" />
                             </div>
                             {items.map((item, idx) => item.category !== cat ? null : (
-                              <div key={idx} className="grid grid-cols-12 gap-2 items-center bg-gray-50 rounded-xl px-2 py-1.5">
-                                <input value={item.name} onChange={e => updateItem(idx, 'name', e.target.value)}
-                                  className="col-span-4 bg-transparent text-sm text-gray-800 focus:outline-none" />
-                                <div className="col-span-3 flex items-center justify-end gap-0.5">
-                                  <span className="text-xs text-gray-400">$</span>
-                                  <input type="number" value={item.unit_price} onChange={e => updateItem(idx, 'unit_price', +e.target.value)}
-                                    className="w-20 text-right text-sm bg-white border border-gray-200 rounded-lg px-2 py-1 focus:outline-none focus:ring-1 focus:ring-brand-400" />
+                              <div key={idx} className="bg-gray-50 rounded-xl px-2 py-1.5">
+                                {/* Desktop row */}
+                                <div className="hidden sm:grid grid-cols-12 gap-2 items-center">
+                                  <input value={item.name} onChange={e => updateItem(idx, 'name', e.target.value)}
+                                    className="col-span-4 bg-transparent text-sm text-gray-800 focus:outline-none" />
+                                  <div className="col-span-3 flex items-center justify-end gap-0.5">
+                                    <span className="text-xs text-gray-400">$</span>
+                                    <input {...numericInputProps(item.unit_price, v => updateItem(idx, 'unit_price', v))}
+                                      className="w-20 text-right text-sm bg-white border border-gray-200 rounded-lg px-2 py-1 focus:outline-none focus:ring-1 focus:ring-brand-400" />
+                                  </div>
+                                  <div className="col-span-2 flex items-center justify-center gap-1">
+                                    <button onClick={() => updateItem(idx, 'quantity', Math.max(1, item.quantity - 1))}
+                                      className="w-6 h-6 flex items-center justify-center bg-white border border-gray-200 rounded text-sm hover:bg-gray-100 flex-shrink-0">-</button>
+                                    <input {...numericInputProps(item.quantity, v => updateItem(idx, 'quantity', v), 1)}
+                                      className="w-10 text-center text-sm border border-gray-200 rounded px-1 py-0.5 focus:outline-none focus:ring-1 focus:ring-brand-400" />
+                                    <button onClick={() => updateItem(idx, 'quantity', item.quantity + 1)}
+                                      className="w-6 h-6 flex items-center justify-center bg-white border border-gray-200 rounded text-sm hover:bg-gray-100 flex-shrink-0">+</button>
+                                  </div>
+                                  <div className="col-span-2 text-right text-sm font-medium text-gray-800">
+                                    ${(item.unit_price * item.quantity).toLocaleString()}
+                                  </div>
+                                  <button onClick={() => removeItem(idx)} className="col-span-1 flex justify-center p-1 hover:text-red-500 transition-colors">
+                                    <Trash2 size={14} />
+                                  </button>
                                 </div>
-                                <div className="col-span-2 flex items-center justify-center gap-1">
-                                  <button onClick={() => updateItem(idx, 'quantity', Math.max(1, item.quantity - 1))}
-                                    className="w-6 h-6 flex items-center justify-center bg-white border border-gray-200 rounded text-sm hover:bg-gray-100 flex-shrink-0">-</button>
-                                  <input type="number" min={1} value={item.quantity}
-                                    onChange={e => updateItem(idx, 'quantity', Math.max(1, parseInt(e.target.value) || 1))}
-                                    className="w-10 text-center text-sm border border-gray-200 rounded px-1 py-0.5 focus:outline-none focus:ring-1 focus:ring-brand-400" />
-                                  <button onClick={() => updateItem(idx, 'quantity', item.quantity + 1)}
-                                    className="w-6 h-6 flex items-center justify-center bg-white border border-gray-200 rounded text-sm hover:bg-gray-100 flex-shrink-0">+</button>
+                                {/* Mobile stacked row */}
+                                <div className="sm:hidden space-y-2 py-1">
+                                  <div className="flex items-center justify-between gap-2">
+                                    <input value={item.name} onChange={e => updateItem(idx, 'name', e.target.value)}
+                                      className="flex-1 bg-transparent text-sm text-gray-800 font-medium focus:outline-none min-w-0" />
+                                    <button onClick={() => removeItem(idx)} className="p-1 hover:text-red-500 transition-colors flex-shrink-0">
+                                      <Trash2 size={14} />
+                                    </button>
+                                  </div>
+                                  <div className="flex items-center justify-between gap-3">
+                                    <div className="flex items-center gap-1">
+                                      <span className="text-xs text-gray-400">$</span>
+                                      <input {...numericInputProps(item.unit_price, v => updateItem(idx, 'unit_price', v))}
+                                        className="w-16 text-right text-sm bg-white border border-gray-200 rounded-lg px-2 py-1 focus:outline-none focus:ring-1 focus:ring-brand-400" />
+                                    </div>
+                                    <div className="flex items-center gap-1">
+                                      <button onClick={() => updateItem(idx, 'quantity', Math.max(1, item.quantity - 1))}
+                                        className="w-6 h-6 flex items-center justify-center bg-white border border-gray-200 rounded text-sm hover:bg-gray-100">-</button>
+                                      <input {...numericInputProps(item.quantity, v => updateItem(idx, 'quantity', v), 1)}
+                                        className="w-10 text-center text-sm border border-gray-200 rounded px-1 py-0.5 focus:outline-none focus:ring-1 focus:ring-brand-400" />
+                                      <button onClick={() => updateItem(idx, 'quantity', item.quantity + 1)}
+                                        className="w-6 h-6 flex items-center justify-center bg-white border border-gray-200 rounded text-sm hover:bg-gray-100">+</button>
+                                    </div>
+                                    <span className="text-sm font-medium text-gray-800">${(item.unit_price * item.quantity).toLocaleString()}</span>
+                                  </div>
                                 </div>
-                                <div className="col-span-2 text-right text-sm font-medium text-gray-800">
-                                  ${(item.unit_price * item.quantity).toLocaleString()}
-                                </div>
-                                <button onClick={() => removeItem(idx)} className="col-span-1 flex justify-center p-1 hover:text-red-500 transition-colors">
-                                  <Trash2 size={14} />
-                                </button>
                               </div>
                             ))}
                             <div className="text-right text-sm font-semibold text-brand-600 pr-2 pt-1">
@@ -1053,7 +1098,7 @@ export default function QuoteBuilder() {
 
         {/* ── Right: Summary ── */}
         <div className="space-y-4">
-          <div className="bg-white rounded-2xl border border-gray-100 p-5 sticky top-4">
+          <div className="bg-white rounded-2xl border border-gray-100 p-5 xl:sticky xl:top-4">
             <h2 className="font-semibold text-gray-800 mb-4">費用摘要</h2>
             <div className="space-y-3">
               {CATEGORIES.map(cat => {
@@ -1079,9 +1124,7 @@ export default function QuoteBuilder() {
                 <label className="text-xs text-gray-500 w-16 flex-shrink-0">折扣</label>
                 <div className="flex items-center gap-1 flex-1">
                   <span className="text-xs text-gray-400">NT$</span>
-                  <input type="number" min={0} value={discount}
-                    onChange={e => setDiscount(Math.max(0, +e.target.value))}
-                    placeholder="0"
+                  <input {...numericInputProps(discount, setDiscount)} placeholder="0"
                     className="flex-1 text-right text-sm border border-gray-200 rounded-lg px-2 py-1 focus:outline-none focus:ring-1 focus:ring-brand-400" />
                 </div>
               </div>
@@ -1099,14 +1142,34 @@ export default function QuoteBuilder() {
                 <label className="text-xs text-gray-500 w-16 flex-shrink-0">定金</label>
                 <div className="flex items-center gap-1 flex-1">
                   <span className="text-xs text-gray-400">NT$</span>
-                  <input type="number" min={0} value={deposit}
-                    onChange={e => setDeposit(Math.max(0, +e.target.value))}
+                  <input {...numericInputProps(deposit, setDeposit)} placeholder="0"
                     className="flex-1 text-right text-sm border border-gray-200 rounded-lg px-2 py-1 focus:outline-none focus:ring-1 focus:ring-brand-400" />
                 </div>
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-gray-500">尾款</span>
                 <span className="font-semibold text-green-600">NT${balance.toLocaleString()}</span>
+              </div>
+            </div>
+
+            {/* Payment Link */}
+            <div className="mt-4 pt-4 border-t border-gray-100 space-y-2">
+              <div>
+                <label className="text-xs text-gray-500 mb-1.5 block">付款連結</label>
+                <input type="url" value={form.payment_link}
+                  onChange={e => setForm({ ...form, payment_link: e.target.value })}
+                  placeholder="https://pay.example.com/..."
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-brand-400" />
+              </div>
+              <div>
+                <label className="text-xs text-gray-500 mb-1.5 block">付款狀態</label>
+                <select value={form.payment_status}
+                  onChange={e => setForm({ ...form, payment_status: e.target.value })}
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-brand-400">
+                  <option value="">未設定</option>
+                  <option value="待付款">待付款</option>
+                  <option value="已付款">已付款</option>
+                </select>
               </div>
             </div>
 
@@ -1121,6 +1184,19 @@ export default function QuoteBuilder() {
               </button>
             </div>
           </div>
+
+          {/* Mobile bottom action bar */}
+          <div className="xl:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-4 py-3 z-40 flex gap-2">
+            <button onClick={() => handleSave(false)} disabled={saving}
+              className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-gray-100 text-gray-700 text-sm rounded-xl">
+              <Save size={15} />儲存
+            </button>
+            <button onClick={() => handleSave(true)} disabled={saving}
+              className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-brand-500 text-white text-sm rounded-xl">
+              <Eye size={15} />預覽
+            </button>
+          </div>
+          <div className="xl:hidden h-16" />
         </div>
       </div>
     </div>

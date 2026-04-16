@@ -369,6 +369,34 @@ export default function QuoteView() {
               </div>
             </div>
           )}
+
+          {/* Payment Link + QR Code */}
+          {quote.payment_link && (
+            <div className="mt-6 bg-green-50 border border-green-100 rounded-xl p-5 print:break-inside-avoid">
+              <h3 className="font-semibold text-green-800 mb-3 text-sm">線上付款</h3>
+              <div className="flex items-start gap-4">
+                <img
+                  src={`https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(quote.payment_link)}`}
+                  alt="付款 QR Code"
+                  className="w-[120px] h-[120px] rounded-lg border border-green-200"
+                />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm text-green-700 mb-2">掃描 QR Code 或點擊以下連結前往付款：</p>
+                  <a
+                    href={quote.payment_link}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-sm text-green-600 hover:text-green-800 underline break-all"
+                  >
+                    {quote.payment_link}
+                  </a>
+                  {quote.payment_status && (
+                    <p className="mt-2 text-xs text-green-600">付款狀態：{quote.payment_status}</p>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* ── Schedule Table ── */}

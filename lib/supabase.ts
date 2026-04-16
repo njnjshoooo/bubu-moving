@@ -20,6 +20,10 @@ export const T = {
   quoteSchedule:        'bubu_quote_schedule_items',
   goals:                'bubu_consultant_goals',
   notificationSettings: 'bubu_notification_settings',
+  estimates:            'bubu_estimates',
+  products:             'bubu_products',
+  orders:               'bubu_orders',
+  caseStudies:          'bubu_case_studies',
 } as const;
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -171,5 +175,67 @@ export interface NotificationSetting {
   notify_booking: boolean;
   notify_quote: boolean;
   is_active: boolean;
+  created_at: string;
+}
+
+export interface Estimate {
+  id: string;
+  user_id: string;
+  service_type: string | null;
+  area: number;
+  room_type: string | null;
+  elevator_status: string | null;
+  density: string | null;
+  estimated_trucks: number;
+  estimated_people: number;
+  estimated_hours: number;
+  truck_cost: number;
+  labor_cost: number;
+  supply_cost: number;
+  estimated_total: number;
+  created_at: string;
+}
+
+export interface Product {
+  id: string;
+  name: string;
+  category: string;
+  price: number;
+  description: string | null;
+  specs: string | null;
+  usage_tip: string | null;
+  image_url: string | null;
+  is_active: boolean;
+  is_popular: boolean;
+  sort_order: number;
+  created_at: string;
+}
+
+export interface Order {
+  id: string;
+  customer_name: string;
+  phone: string | null;
+  email: string | null;
+  items: any[];
+  subtotal: number;
+  shipping_fee: number;
+  total: number;
+  status: string;
+  notes: string | null;
+  created_at: string;
+}
+
+export interface CaseStudy {
+  id: string;
+  title: string;
+  category: string;
+  location: string | null;
+  work_date: string | null;
+  image_url: string | null;
+  description: string | null;
+  testimonial: string | null;
+  author: string | null;
+  is_visible: boolean;
+  sort_order: number;
   created_at: string;
 }

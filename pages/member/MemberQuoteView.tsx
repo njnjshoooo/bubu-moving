@@ -191,6 +191,27 @@ export default function MemberQuoteView() {
         );
       })}
 
+      {/* Payment QR Code */}
+      {quote.payment_link && (
+        <div className="bg-green-50 border border-green-100 rounded-2xl p-5 mt-4">
+          <h2 className="font-semibold text-green-700 mb-3">線上付款</h2>
+          <div className="flex items-center gap-4">
+            <img
+              src={`https://api.qrserver.com/v1/create-qr-code/?size=100x100&data=${encodeURIComponent(quote.payment_link)}`}
+              alt="付款 QR Code"
+              className="w-[100px] h-[100px] rounded-lg border border-green-200"
+            />
+            <div>
+              <p className="text-sm text-green-700 mb-2">掃描 QR Code 或點擊下方連結：</p>
+              <a href={quote.payment_link} target="_blank" rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 text-sm bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-xl transition-colors">
+                前往付款
+              </a>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* 顧問聯絡 */}
       {(quote.consultant_name || quote.consultant_phone) && (
         <div className="bg-white rounded-2xl border border-gray-100 p-5">

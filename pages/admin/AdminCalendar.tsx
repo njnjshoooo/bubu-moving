@@ -385,6 +385,60 @@ export default function AdminCalendar() {
           </div>
         </div>
       </div>
+
+      {/* ── Monthly Slot Summary ── */}
+      <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden mt-6">
+        <div className="px-5 py-4 border-b border-gray-100">
+          <h3 className="font-semibold text-gray-800">
+            {year}年 {MONTHS[month]} 時段總覽
+          </h3>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="bg-gray-50 text-xs text-gray-500 font-medium">
+                <th className="text-left px-4 py-2">日期</th>
+                <th className="text-left px-4 py-2">時段</th>
+                <th className="text-center px-4 py-2">已預約 / 上限</th>
+                <th className="text-center px-4 py-2">狀態</th>
+              </tr>
+            </thead>
+            <tbody>
+              {slots
+                .filter(s => s.date.startsWith(`${year}-${String(month + 1).padStart(2, '0')}`))
+                .sort((a, b) => a.date.localeCompare(b.date) || a.start_time.localeCompare(b.start_time))
+                .map(slot => {
+                  const isFull = (slot.current_bookings ?? 0) >= (slot.max_bookings ?? 1);
+                  return (
+                    <tr key={slot.id} className="border-t border-gray-50 hover:bg-gray-50 cursor-pointer"
+                      onClick={() => setSelectedDate(slot.date)}>
+                      <td className="px-4 py-2.5 text-gray-800">{slot.date}</td>
+                      <td className="px-4 py-2.5 text-gray-600">
+                        {slot.start_time.slice(0,5)} – {slot.end_time.slice(0,5)}
+                      </td>
+                      <td className="px-4 py-2.5 text-center">
+                        <span className={isFull ? 'text-red-600 font-medium' : ''}>{slot.current_bookings ?? 0}</span>
+                        <span className="text-gray-400"> / {slot.max_bookings ?? 1}</span>
+                      </td>
+                      <td className="px-4 py-2.5 text-center">
+                        <span className={`text-xs px-2 py-1 rounded-full font-medium ${
+                          !slot.is_active ? 'bg-gray-100 text-gray-400' :
+                          isFull ? 'bg-red-100 text-red-600' :
+                          'bg-green-100 text-green-600'
+                        }`}>
+                          {!slot.is_active ? '已停用' : isFull ? '已額滿' : '可預約'}
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })}
+            </tbody>
+          </table>
+        </div>
+        {slots.filter(s => s.date.startsWith(`${year}-${String(month + 1).padStart(2, '0')}`)).length === 0 && (
+          <p className="text-sm text-gray-400 text-center py-6">本月尚無時段</p>
+        )}
+      </div>
     </div>
   );
 }

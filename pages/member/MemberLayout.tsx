@@ -1,12 +1,13 @@
 import React from 'react';
 import { Outlet, NavLink, Link, useNavigate } from 'react-router-dom';
-import { Truck, LayoutDashboard, ClipboardList, FileText, User, LogOut } from 'lucide-react';
+import { Truck, LayoutDashboard, ClipboardList, FileText, User, LogOut, Calculator } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 
 const navItems = [
   { to: '/member', label: '總覽', icon: LayoutDashboard, end: true },
   { to: '/member/bookings', label: '我的預約', icon: ClipboardList },
   { to: '/member/quotes', label: '我的報價單', icon: FileText },
+  { to: '/member/estimates', label: '我的試算', icon: Calculator },
   { to: '/member/profile', label: '個人資料', icon: User },
 ];
 

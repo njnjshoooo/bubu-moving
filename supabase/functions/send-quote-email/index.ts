@@ -121,6 +121,16 @@ serve(async (req) => {
         <p style="font-size:28px;font-weight:800;margin:0;">NT$${quote.total.toLocaleString()}</p>
       </div>`;
 
+    const paymentHtml = quote.payment_link ? `
+      <div style="background:#ECFDF5;border:1px solid #D1FAE5;border-radius:10px;padding:20px;margin:24px 0;text-align:center;">
+        <h3 style="color:#065F46;margin:0 0 12px;font-size:16px;">線上付款</h3>
+        <img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(quote.payment_link)}"
+          alt="Payment QR" style="width:150px;height:150px;margin:0 auto 12px;display:block;border-radius:8px;" />
+        <a href="${quote.payment_link}" style="display:inline-block;background:#059669;color:white;text-decoration:none;padding:10px 24px;border-radius:8px;font-weight:600;font-size:14px;">
+          前往付款
+        </a>
+      </div>` : '';
+
     const html = `
 <!DOCTYPE html>
 <html>
@@ -163,6 +173,8 @@ serve(async (req) => {
       ${staffHtml}
 
       ${totalHtml}
+
+      ${paymentHtml}
 
       ${notesHtml}
 

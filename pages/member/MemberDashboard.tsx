@@ -28,11 +28,16 @@ export default function MemberDashboard() {
   useEffect(() => {
     if (!user) return;
     Promise.all([
-      supabase.from(T.bookings)
-        .select(`*, time_slots:${T.slots}(date, start_time)`)
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false })
-        .limit(3),
+      (() => {
+        const filters = [`user_id.eq.${user.id}`];
+        if (user.email) filters.push(`email.eq.${user.email}`);
+        if (profile?.phone) filters.push(`phone.eq.${profile.phone}`);
+        return supabase.from(T.bookings)
+          .select(`*, time_slots:${T.slots}(date, start_time)`)
+          .or(filters.join(','))
+          .order('created_at', { ascending: false })
+          .limit(3);
+      })(),
       supabase.from(T.quotes)
         .select('id, quote_number, total, status, created_at')
         .or(`customer_user_id.eq.${user.id},email.eq.${user.email}`)

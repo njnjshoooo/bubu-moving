@@ -13,7 +13,7 @@ interface NavbarProps {
 const Navbar: React.FC<NavbarProps> = ({ currentPage, onNavigate }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
-  const { user, profile } = useAuth();
+  const { user, profile, loading } = useAuth();
   // 只有一般會員才在前台 Navbar 顯示帳號按鈕；後台員工不顯示（入口藏在 Footer）
   const isMember = !profile || profile.role === 'member';
   const navigate = useNavigate();
@@ -131,7 +131,7 @@ const Navbar: React.FC<NavbarProps> = ({ currentPage, onNavigate }) => {
               <span>0912-345-678</span>
             </a>
             {/* 桌面版：只對一般會員顯示；後台員工不顯示 */}
-            {user && isMember ? (
+            {!loading && user && isMember ? (
               <button
                 onClick={() => navigate('/member')}
                 className="flex items-center gap-2 bg-white/20 hover:bg-white/30 border border-white/40 text-white px-4 py-2 rounded-full font-medium text-sm transition-all backdrop-blur-sm"
@@ -140,7 +140,7 @@ const Navbar: React.FC<NavbarProps> = ({ currentPage, onNavigate }) => {
                 <User size={16} />
                 我的帳號
               </button>
-            ) : !user ? (
+            ) : !loading && !user ? (
               <button
                 onClick={() => navigate('/login')}
                 className={`flex items-center gap-2 px-5 py-2 rounded-full font-semibold text-sm transition-all transform hover:scale-105 shadow-md ${
@@ -158,7 +158,7 @@ const Navbar: React.FC<NavbarProps> = ({ currentPage, onNavigate }) => {
            {/* Mobile: login + hamburger */}
            <div className="xl:hidden flex items-center gap-2">
             {/* 手機版登入按鈕（漢堡旁邊）：只對一般會員顯示；後台員工不顯示 */}
-            {user && isMember ? (
+            {!loading && user && isMember ? (
               <button
                 onClick={() => navigate('/member')}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium ${
@@ -168,7 +168,7 @@ const Navbar: React.FC<NavbarProps> = ({ currentPage, onNavigate }) => {
                 <User size={15} />
                 帳號
               </button>
-            ) : !user ? (
+            ) : !loading && !user ? (
               <button
                 onClick={() => navigate('/login')}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-semibold ${
@@ -215,7 +215,7 @@ const Navbar: React.FC<NavbarProps> = ({ currentPage, onNavigate }) => {
                 立即費用試算
               </a>
               {/* 手機選單內也顯示登入/帳號：只對一般會員顯示；後台員工不顯示 */}
-              {user && isMember ? (
+              {!loading && user && isMember ? (
                 <button
                   onClick={() => { setIsOpen(false); navigate('/member'); }}
                   className="inline-flex items-center gap-2 bg-brand-500 text-white px-6 py-3 rounded-full font-semibold shadow-md"
@@ -223,7 +223,7 @@ const Navbar: React.FC<NavbarProps> = ({ currentPage, onNavigate }) => {
                   <User size={17} />
                   我的帳號
                 </button>
-              ) : !user ? (
+              ) : !loading && !user ? (
                 <button
                   onClick={() => { setIsOpen(false); navigate('/login'); }}
                   className="inline-flex items-center gap-2 bg-brand-500 text-white px-6 py-3 rounded-full font-semibold shadow-md"

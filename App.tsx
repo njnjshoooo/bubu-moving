@@ -47,10 +47,14 @@ import ConsultantProfile from './pages/consultant/ConsultantProfile';
 import AdminConsultants from './pages/admin/AdminConsultants';
 import AdminUsers from './pages/admin/AdminUsers';
 import AdminSettings from './pages/admin/AdminSettings';
+import AdminProducts from './pages/admin/AdminProducts';
+import AdminOrders from './pages/admin/AdminOrders';
+import AdminCaseStudies from './pages/admin/AdminCaseStudies';
 
 // Member extra pages
 import MemberQuotes from './pages/member/MemberQuotes';
 import MemberQuoteView from './pages/member/MemberQuoteView';
+import MemberEstimates from './pages/member/MemberEstimates';
 
 // Consultant extra pages
 import ConsultantDashboard from './pages/consultant/ConsultantDashboard';
@@ -153,6 +157,9 @@ function App() {
             <Route path="quotes/new/:bookingId" element={<QuoteBuilder />} />
             <Route path="quotes/:quoteId" element={<QuoteBuilder />} />
             <Route path="quotes/:quoteId/view" element={<QuoteView />} />
+            <Route path="products" element={<AdminProducts />} />
+            <Route path="orders" element={<AdminOrders />} />
+            <Route path="cases" element={<AdminCaseStudies />} />
             <Route path="consultants" element={<AdminConsultants />} />
             <Route path="users" element={<SuperAdminRoute><AdminUsers /></SuperAdminRoute>} />
             <Route path="settings" element={<AdminSettings />} />
@@ -171,6 +178,7 @@ function App() {
             <Route path="bookings" element={<MemberBookings />} />
             <Route path="quotes" element={<MemberQuotes />} />
             <Route path="quotes/:quoteId" element={<MemberQuoteView />} />
+            <Route path="estimates" element={<MemberEstimates />} />
             <Route path="profile" element={<MemberProfile />} />
           </Route>
         </Routes>
