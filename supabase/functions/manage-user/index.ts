@@ -57,33 +57,54 @@ serve(async (req) => {
       });
     }
 
-    // ── Action: update_profile（更新姓名、電話、地址）─────────────────────
+    // ── Action: update_profile（更新姓名、電話、地址、角色）───────────────
     if (action === 'update_profile') {
-      const { display_name, phone, address } = body;
+      const { display_name, phone, address, role: newRole } = body;
       if (!display_name) throw new Error('姓名為必填');
+      if (newRole && !['admin', 'manager', 'consultant'].includes(newRole)) {
+        throw new Error('無效的角色');
+      }
+      // 禁止修改自己的角色（避免自我鎖死）
+      if (newRole && user_id === caller.id) {
+        throw new Error('無法修改自己的角色');
+      }
 
-      // 1. bubu_app_users
-      const { error: e1 } = await supabase.from('bubu_app_users').update({
+      // 1. bubu_app_users（含 role）
+      const updatePayload: any = {
         display_name,
         phone: phone || null,
-      }).eq('id', user_id);
+      };
+      if (newRole) updatePayload.role = newRole;
+      const { error: e1 } = await supabase.from('bubu_app_users').update(updatePayload).eq('id', user_id);
       if (e1) throw new Error(`更新 app_users 失敗：${e1.message}`);
 
-      // 2. bubu_consultants（若該使用者是顧問才更新）
+      // 2. bubu_consultants 同步
       const { data: existingConsultant } = await supabase.from('bubu_consultants')
         .select('id').eq('user_id', user_id).maybeSingle();
+
+      const consultantData = {
+        display_name,
+        phone: phone || null,
+        address: address || null,
+      };
+
       if (existingConsultant) {
-        const { error: e2 } = await supabase.from('bubu_consultants').update({
-          display_name,
-          phone: phone || null,
-          address: address || null,
-        }).eq('user_id', user_id);
+        // 既有顧問：更新資料
+        const { error: e2 } = await supabase.from('bubu_consultants').update(consultantData).eq('user_id', user_id);
         if (e2) throw new Error(`更新 consultants 失敗：${e2.message}`);
+      } else if (newRole === 'consultant') {
+        // 新升級為顧問：建立 consultant 資料
+        const { error: e3 } = await supabase.from('bubu_consultants').insert({
+          user_id,
+          ...consultantData,
+          is_active: true,
+        });
+        if (e3) throw new Error(`建立 consultants 失敗：${e3.message}`);
       }
 
       // 3. auth.users metadata
       await supabase.auth.admin.updateUserById(user_id, {
-        user_metadata: { display_name },
+        user_metadata: { display_name, ...(newRole ? { role: newRole } : {}) },
       });
 
       return ok({ ok: true });

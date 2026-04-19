@@ -62,7 +62,7 @@ export default function AdminConsultants() {
 
   // 編輯帳號 Modal
   const [editUser, setEditUser] = useState<UnifiedUser | null>(null);
-  const [editForm, setEditForm] = useState({ display_name: '', phone: '', email: '' });
+  const [editForm, setEditForm] = useState({ display_name: '', phone: '', email: '', role: 'manager' as Role });
   const [editAddr, setEditAddr] = useState({ city: '', district: '', detail: '' });
   const [editLoading, setEditLoading] = useState(false);
   const [editSaving, setEditSaving] = useState(false);
@@ -164,7 +164,7 @@ export default function AdminConsultants() {
   const openEdit = async (u: UnifiedUser) => {
     setEditUser(u);
     setEditMsg(null);
-    setEditForm({ display_name: u.display_name ?? '', phone: u.phone ?? '', email: '' });
+    setEditForm({ display_name: u.display_name ?? '', phone: u.phone ?? '', email: '', role: u.role as Role });
     setEditAddr(parseAddress(u.address ?? ''));
     setEditLoading(true);
     try {
@@ -185,6 +185,7 @@ export default function AdminConsultants() {
     setEditMsg(null);
     try {
       const address = [editAddr.city, editAddr.district, editAddr.detail].filter(Boolean).join('');
+      const roleChanged = editForm.role !== editUser.role;
       const { data, error } = await supabase.functions.invoke('manage-user', {
         body: {
           action: 'update_profile',
@@ -192,6 +193,7 @@ export default function AdminConsultants() {
           display_name: editForm.display_name,
           phone: editForm.phone,
           address: address || null,
+          ...(roleChanged ? { role: editForm.role } : {}),
         },
       });
       if (error && !data) throw error;
@@ -537,7 +539,32 @@ export default function AdminConsultants() {
                       className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400" />
                   </div>
 
-                  {editUser.role === 'consultant' && (
+                  {/* 角色切換（不可修改自己）*/}
+                  <div>
+                    <label className="block text-xs font-medium text-gray-500 mb-1.5">權限角色</label>
+                    {editUser.id === profile?.id ? (
+                      <div className="flex items-center gap-2 px-3 py-2 border border-gray-200 rounded-xl bg-gray-50 text-sm text-gray-500">
+                        {roleIcon(editForm.role)}
+                        {roleLabel[editForm.role]}
+                        <span className="text-xs text-gray-400 ml-auto">（自己的帳號無法修改角色）</span>
+                      </div>
+                    ) : (
+                      <select value={editForm.role}
+                        onChange={e => setEditForm({ ...editForm, role: e.target.value as Role })}
+                        className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400 bg-white">
+                        <option value="admin">最高管理者（全權限）</option>
+                        <option value="manager">管理員（不可管理帳號）</option>
+                        <option value="consultant">估價顧問（顧問後台）</option>
+                      </select>
+                    )}
+                    {editForm.role !== editUser.role && (
+                      <p className="text-xs text-amber-600 mt-1.5">
+                        ⚠️ 角色將從「{roleLabel[editUser.role as Role]}」變更為「{roleLabel[editForm.role]}」
+                      </p>
+                    )}
+                  </div>
+
+                  {editForm.role === 'consultant' && (
                     <div>
                       <label className="block text-xs font-medium text-gray-500 mb-1.5">住家地址（路線規劃用）</label>
                       <div className="grid grid-cols-2 gap-2 mb-2">
