@@ -75,7 +75,27 @@ export default function AdminBookings() {
   };
 
   const deleteBooking = async (id: string, customerName: string) => {
-    if (!confirm(`確定要刪除 ${customerName} 的預約單嗎？此動作無法復原。`)) return;
+    // 檢查是否有關聯的報價單
+    const { data: linkedQuotes } = await supabase.from(T.quotes)
+      .select('id, quote_number').eq('booking_id', id);
+    const hasQuotes = (linkedQuotes?.length ?? 0) > 0;
+
+    const msg = hasQuotes
+      ? `確定要刪除 ${customerName} 的預約單嗎？\n此預約單已產生 ${linkedQuotes!.length} 張報價單（${linkedQuotes!.map(q => q.quote_number).join('、')}），\n刪除後報價單仍保留但不再連結到此預約單。\n此動作無法復原。`
+      : `確定要刪除 ${customerName} 的預約單嗎？此動作無法復原。`;
+
+    if (!confirm(msg)) return;
+
+    // 解除關聯報價單的 booking_id，避免外鍵衝突
+    if (hasQuotes) {
+      const { error: unlinkErr } = await supabase.from(T.quotes)
+        .update({ booking_id: null }).eq('booking_id', id);
+      if (unlinkErr) {
+        alert(`解除報價單關聯失敗：${unlinkErr.message}`);
+        return;
+      }
+    }
+
     const { error } = await supabase.from(T.bookings).delete().eq('id', id);
     if (error) {
       alert(`刪除失敗：${error.message}`);
