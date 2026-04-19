@@ -44,11 +44,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setLoading(false);
     });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+    // onAuthStateChange 的 callback 必須保持同步，async 工作用 setTimeout 延後
+    // 否則 supabase 內部會鎖死（官方 known issue）
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
       setUser(session?.user ?? null);
       if (session?.user) {
-        await fetchProfile(session.user.id);
+        const userId = session.user.id;
+        setTimeout(() => { fetchProfile(userId); }, 0);
       } else {
         setProfile(null);
       }
