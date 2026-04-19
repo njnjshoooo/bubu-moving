@@ -61,6 +61,11 @@ export interface Booking {
   city: string | null;
   district: string | null;
   address_detail: string | null;
+  address_to: string | null;
+  address_to_city: string | null;
+  address_to_district: string | null;
+  address_to_detail: string | null;
+  moving_date: string | null;
   service_type: string;
   notes: string | null;
   status: '待確認' | '已確認' | '進行中' | '已完成' | '已取消';

@@ -12,9 +12,17 @@ interface BookingForm {
   customer_name: string;
   phone: string;
   email: string;
+  // 舊址
   city: string;
   district: string;
   address_detail: string;
+  // 新址
+  to_city: string;
+  to_district: string;
+  to_detail: string;
+  // 其他
+  moving_date: string;
+  notes: string;
 }
 
 interface LookupBooking {
@@ -37,7 +45,12 @@ export default function BookingCalendar() {
   const [slots, setSlots] = useState<TimeSlot[]>([]);
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedSlot, setSelectedSlot] = useState<TimeSlot | null>(null);
-  const [form, setForm] = useState<BookingForm>({ customer_name: '', phone: '', email: '', city: '', district: '', address_detail: '' });
+  const [form, setForm] = useState<BookingForm>({
+    customer_name: '', phone: '', email: '',
+    city: '', district: '', address_detail: '',
+    to_city: '', to_district: '', to_detail: '',
+    moving_date: '', notes: '',
+  });
   const [step, setStep] = useState<Step>('calendar');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
@@ -97,6 +110,7 @@ export default function BookingCalendar() {
     setError('');
     setSubmitting(true);
     const address_from = [form.city, form.district, form.address_detail].filter(Boolean).join('');
+    const address_to = [form.to_city, form.to_district, form.to_detail].filter(Boolean).join('');
     const { data: bookingData, error: err } = await supabase.from(T.bookings).insert({
       time_slot_id: selectedSlot.id,
       customer_name: form.customer_name,
@@ -106,6 +120,12 @@ export default function BookingCalendar() {
       district: form.district,
       address_detail: form.address_detail,
       address_from,
+      address_to_city: form.to_city || null,
+      address_to_district: form.to_district || null,
+      address_to_detail: form.to_detail || null,
+      address_to: address_to || null,
+      moving_date: form.moving_date || null,
+      notes: form.notes || null,
       service_type: '到府估價',
       is_waitlist: isWaitlist,
     }).select('id').single();
@@ -177,7 +197,12 @@ export default function BookingCalendar() {
     setStep('calendar');
     setSelectedSlot(null);
     setIsWaitlist(false);
-    setForm({ customer_name: '', phone: '', email: '', city: '', district: '', address_detail: '' });
+    setForm({
+      customer_name: '', phone: '', email: '',
+      city: '', district: '', address_detail: '',
+      to_city: '', to_district: '', to_detail: '',
+      moving_date: '', notes: '',
+    });
   };
 
   // ─── Success Screen ───────────────────────────────────────────────────────────
@@ -383,9 +408,9 @@ export default function BookingCalendar() {
                         className="w-full pl-10 pr-4 py-3 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-400" />
                     </div>
                   </div>
-                  {/* Address */}
+                  {/* 舊址 */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1.5">估價地址 *</label>
+                    <label className="block text-sm font-medium text-gray-700 mb-1.5">舊址 *</label>
                     <div className="grid grid-cols-2 gap-2 mb-2">
                       <div className="relative">
                         <MapPin size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
@@ -406,6 +431,52 @@ export default function BookingCalendar() {
                     <input value={form.address_detail} onChange={e => setForm({ ...form, address_detail: e.target.value })}
                       required placeholder="詳細地址（路街巷弄號）"
                       className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-400" />
+                  </div>
+
+                  {/* 新址 */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1.5">新址 *</label>
+                    <div className="grid grid-cols-2 gap-2 mb-2">
+                      <div className="relative">
+                        <MapPin size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                        <select value={form.to_city} onChange={e => setForm({ ...form, to_city: e.target.value, to_district: '' })}
+                          required
+                          className="w-full pl-9 pr-3 py-3 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-400 appearance-none">
+                          <option value="">選擇縣市 *</option>
+                          {CITIES.map(c => <option key={c} value={c}>{c}</option>)}
+                        </select>
+                      </div>
+                      <select value={form.to_district} onChange={e => setForm({ ...form, to_district: e.target.value })}
+                        required disabled={!form.to_city}
+                        className="w-full px-3 py-3 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-400 disabled:bg-gray-100 disabled:text-gray-400 appearance-none">
+                        <option value="">選擇行政區 *</option>
+                        {(TAIWAN_DISTRICTS[form.to_city] ?? []).map(d => <option key={d} value={d}>{d}</option>)}
+                      </select>
+                    </div>
+                    <input value={form.to_detail} onChange={e => setForm({ ...form, to_detail: e.target.value })}
+                      required placeholder="詳細地址（路街巷弄號）"
+                      className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-400" />
+                  </div>
+
+                  {/* 預計搬家日 */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1.5">預計搬家日</label>
+                    <div className="relative">
+                      <Calendar size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                      <input type="date" value={form.moving_date}
+                        onChange={e => setForm({ ...form, moving_date: e.target.value })}
+                        min={today}
+                        className="w-full pl-10 pr-4 py-3 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-400" />
+                    </div>
+                  </div>
+
+                  {/* 備註 */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1.5">備註</label>
+                    <textarea value={form.notes} rows={3}
+                      onChange={e => setForm({ ...form, notes: e.target.value })}
+                      placeholder="（選填）任何想先告訴我們的需求，例如：樓層、是否有電梯、特殊物件、打包需求等"
+                      className="w-full px-4 py-3 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-400 resize-none" />
                   </div>
 
                   {error && <p className="text-sm text-red-600 bg-red-50 rounded-xl px-4 py-3">{error}</p>}
