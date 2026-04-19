@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Search, Filter, FileText, Phone, MapPin, Calendar, Edit2, X, Save, User, Trash2, Plus } from 'lucide-react';
+import { Search, Filter, FileText, Phone, MapPin, Calendar, Edit2, X, Save, User, Trash2, Plus, Copy, Check } from 'lucide-react';
 import { supabase, Booking, TimeSlot, Consultant, T } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import { TAIWAN_DISTRICTS, CITIES } from '../../lib/taiwanDistricts';
@@ -41,13 +41,16 @@ export default function AdminBookings() {
   const [editSaving, setEditSaving] = useState(false);
   const [availableSlots, setAvailableSlots] = useState<TimeSlot[]>([]);
 
+  // 複製狀態（短暫顯示勾勾）
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+
   // 新增預約 modal state
   const [showCreate, setShowCreate] = useState(false);
   const [createSaving, setCreateSaving] = useState(false);
   const [createError, setCreateError] = useState('');
   const [createSlots, setCreateSlots] = useState<TimeSlot[]>([]);
   const [createForm, setCreateForm] = useState({
-    customer_name: '', phone: '',
+    customer_name: '', phone: '', email: '',
     from_city: '', from_district: '', from_detail: '',
     to_city: '', to_district: '', to_detail: '',
     moving_date: '', notes: '',
@@ -91,12 +94,46 @@ export default function AdminBookings() {
     fetchBookings();
   };
 
+  const copyBooking = async (b: any) => {
+    const slot = b.time_slots;
+    const consultantName = b.consultant?.display_name ?? '未指派';
+    const lines = [
+      '【客戶預約單】',
+      `姓名：${b.customer_name}`,
+      `電話：${b.phone}`,
+      b.email ? `Email：${b.email}` : '',
+      b.address_from ? `舊址：${b.address_from}` : '',
+      b.address_to ? `新址：${b.address_to}` : '',
+      b.moving_date ? `預計搬家日：${b.moving_date}` : '',
+      slot ? `到府估價時段：${slot.date} ${slot.start_time?.slice(0,5)}–${slot.end_time?.slice(0,5)}` : '',
+      `狀態：${b.status}`,
+      `指派顧問：${consultantName}`,
+      b.notes ? `備註：${b.notes}` : '',
+    ].filter(Boolean);
+    const text = lines.join('\n');
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedId(b.id);
+      setTimeout(() => setCopiedId(null), 2000);
+    } catch {
+      // Fallback：用舊 API
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+      setCopiedId(b.id);
+      setTimeout(() => setCopiedId(null), 2000);
+    }
+  };
+
   // ── 新增預約 ────────────────────────────────────────────────────────────
   const openCreate = async () => {
     setShowCreate(true);
     setCreateError('');
     setCreateForm({
-      customer_name: '', phone: '',
+      customer_name: '', phone: '', email: '',
       from_city: '', from_district: '', from_detail: '',
       to_city: '', to_district: '', to_detail: '',
       moving_date: '', notes: '',
@@ -127,7 +164,7 @@ export default function AdminBookings() {
         time_slot_id: createForm.time_slot_id || null,
         customer_name: createForm.customer_name.trim(),
         phone: createForm.phone.trim(),
-        email: null,
+        email: createForm.email.trim() || null,
         city: createForm.from_city || null,
         district: createForm.from_district || null,
         address_detail: createForm.from_detail || null,
@@ -337,7 +374,7 @@ export default function AdminBookings() {
             <table className="w-full text-sm">
               <thead className="bg-gray-50 border-b border-gray-100">
                 <tr>
-                  {['客戶', '聯絡方式', '預約時段', '地址', '指派顧問', '狀態', '操作'].map(h => (
+                  {['客戶', '聯絡方式', '預約時段', '舊址 / 新址', '指派顧問', '狀態', '操作'].map(h => (
                     <th key={h} className="px-4 py-3 text-left text-xs font-medium text-gray-500">{h}</th>
                   ))}
                 </tr>
@@ -359,12 +396,25 @@ export default function AdminBookings() {
                       ) : <span className="text-gray-400">未選時段</span>}
                     </td>
                     <td className="px-4 py-3">
-                      {b.address_from && (
-                        <div className="flex items-center gap-1 text-gray-600 max-w-[180px]">
-                          <MapPin size={13} className="flex-shrink-0" />
-                          <span className="truncate">{b.address_from}</span>
-                        </div>
-                      )}
+                      <div className="space-y-1 max-w-[220px]">
+                        {b.address_from && (
+                          <div className="flex items-center gap-1 text-gray-600 text-xs">
+                            <span className="text-gray-400 flex-shrink-0">舊：</span>
+                            <span className="truncate" title={b.address_from}>{b.address_from}</span>
+                          </div>
+                        )}
+                        {(b as any).address_to && (
+                          <div className="flex items-center gap-1 text-gray-600 text-xs">
+                            <span className="text-gray-400 flex-shrink-0">新：</span>
+                            <span className="truncate" title={(b as any).address_to}>{(b as any).address_to}</span>
+                          </div>
+                        )}
+                        {(b as any).moving_date && (
+                          <div className="text-xs text-gray-400">
+                            搬家日 {(b as any).moving_date}
+                          </div>
+                        )}
+                      </div>
                     </td>
                     <td className="px-4 py-3">
                       <select
@@ -386,6 +436,15 @@ export default function AdminBookings() {
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-1.5">
+                        <button onClick={() => copyBooking(b)}
+                          className={`inline-flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-lg transition-colors ${
+                            copiedId === b.id
+                              ? 'bg-green-100 text-green-700'
+                              : 'bg-blue-50 text-blue-600 hover:bg-blue-100'
+                          }`}
+                          title="複製預約內容">
+                          {copiedId === b.id ? <><Check size={12} />已複製</> : <><Copy size={12} />複製</>}
+                        </button>
                         <button onClick={() => openEdit(b)}
                           className="inline-flex items-center gap-1 text-xs bg-gray-100 text-gray-600 hover:bg-gray-200 px-2.5 py-1.5 rounded-lg transition-colors">
                           <Edit2 size={12} />編輯
@@ -593,6 +652,15 @@ export default function AdminBookings() {
                     placeholder="0912345678"
                     className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400" />
                 </div>
+              </div>
+
+              {/* Email（選填）*/}
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1.5">Email（選填）</label>
+                <input type="email" value={createForm.email}
+                  onChange={e => setCreateForm({ ...createForm, email: e.target.value })}
+                  placeholder="client@example.com"
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400" />
               </div>
 
               {/* 舊址 */}

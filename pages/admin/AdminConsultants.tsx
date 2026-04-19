@@ -198,8 +198,14 @@ export default function AdminConsultants() {
       });
       if (error && !data) throw error;
       if (data?.error) throw new Error(data.error);
-      setEditMsg({ type: 'ok', text: '已更新' });
       await loadUsers();
+      // 角色有變更時立刻關閉視窗，避免顯示過時狀態
+      if (roleChanged) {
+        setEditUser(null);
+        setEditMsg(null);
+      } else {
+        setEditMsg({ type: 'ok', text: '已更新' });
+      }
     } catch (err: any) {
       setEditMsg({ type: 'err', text: err.message ?? '更新失敗' });
     } finally {
