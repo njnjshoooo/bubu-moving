@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Search, Filter, FileText, Phone, MapPin, Calendar, Edit2, X, Save, User } from 'lucide-react';
+import { Search, Filter, FileText, Phone, MapPin, Calendar, Edit2, X, Save, User, Trash2 } from 'lucide-react';
 import { supabase, Booking, TimeSlot, Consultant, T } from '../../lib/supabase';
+import { useAuth } from '../../contexts/AuthContext';
 
 const STATUSES = ['全部', '待確認', '已確認', '進行中', '已完成', '已取消'];
 const statusColor: Record<string, string> = {
@@ -24,6 +25,7 @@ interface EditForm {
 }
 
 export default function AdminBookings() {
+  const { isAdmin } = useAuth();
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [filtered, setFiltered] = useState<Booking[]>([]);
   const [search, setSearch] = useState('');
@@ -65,6 +67,21 @@ export default function AdminBookings() {
   const updateStatus = async (id: string, status: string) => {
     await supabase.from(T.bookings).update({ status }).eq('id', id);
     fetchBookings();
+  };
+
+  const updateConsultant = async (id: string, consultantId: string) => {
+    await supabase.from(T.bookings).update({ assigned_consultant_id: consultantId || null }).eq('id', id);
+    fetchBookings();
+  };
+
+  const deleteBooking = async (id: string, customerName: string) => {
+    if (!confirm(`確定要刪除 ${customerName} 的預約單嗎？此動作無法復原。`)) return;
+    const { error } = await supabase.from(T.bookings).delete().eq('id', id);
+    if (error) {
+      alert(`刪除失敗：${error.message}`);
+    } else {
+      fetchBookings();
+    }
   };
 
   // Open edit modal
@@ -235,14 +252,16 @@ export default function AdminBookings() {
                       )}
                     </td>
                     <td className="px-4 py-3">
-                      {(b as any).consultant ? (
-                        <div className="flex items-center gap-1 text-gray-600">
-                          <User size={13} />
-                          <span className="text-xs">{(b as any).consultant.display_name}</span>
-                        </div>
-                      ) : (
-                        <span className="text-xs text-gray-400">未指派</span>
-                      )}
+                      <select
+                        value={b.assigned_consultant_id ?? ''}
+                        onChange={e => updateConsultant(b.id, e.target.value)}
+                        className="text-xs border border-gray-200 rounded-lg px-2 py-1 focus:outline-none focus:ring-2 focus:ring-brand-400 bg-white min-w-[100px]"
+                      >
+                        <option value="">未指派</option>
+                        {consultants.map(c => (
+                          <option key={c.id} value={c.id}>{c.display_name}</option>
+                        ))}
+                      </select>
                     </td>
                     <td className="px-4 py-3">
                       <select value={b.status} onChange={e => updateStatus(b.id, e.target.value)}
@@ -260,6 +279,13 @@ export default function AdminBookings() {
                           className="inline-flex items-center gap-1 text-xs bg-brand-50 text-brand-600 hover:bg-brand-100 px-2.5 py-1.5 rounded-lg transition-colors">
                           <FileText size={12} />報價
                         </Link>
+                        {isAdmin && (
+                          <button onClick={() => deleteBooking(b.id, b.customer_name)}
+                            className="inline-flex items-center gap-1 text-xs bg-red-50 text-red-600 hover:bg-red-100 px-2.5 py-1.5 rounded-lg transition-colors"
+                            title="刪除預約單（僅最高管理者）">
+                            <Trash2 size={12} />刪除
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>

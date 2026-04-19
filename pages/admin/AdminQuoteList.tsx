@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Plus, Eye, Edit, Search, ClipboardList } from 'lucide-react';
+import { Plus, Eye, Edit, Search, ClipboardList, Trash2 } from 'lucide-react';
 import { supabase, Quote, Consultant, T } from '../../lib/supabase';
+import { useAuth } from '../../contexts/AuthContext';
 
 const statusColor: Record<string, string> = {
   '草稿':  'bg-gray-100 text-gray-500',
@@ -15,6 +16,7 @@ interface QuoteWithConsultant extends Quote {
 }
 
 export default function AdminQuoteList() {
+  const { isAdmin } = useAuth();
   const [quotes, setQuotes] = useState<QuoteWithConsultant[]>([]);
   const [consultants, setConsultants] = useState<Consultant[]>([]);
   const [search, setSearch] = useState('');
@@ -46,6 +48,25 @@ export default function AdminQuoteList() {
   const updateStatus = async (id: string, status: string) => {
     await supabase.from(T.quotes).update({ status }).eq('id', id);
     setQuotes(prev => prev.map(q => q.id === id ? { ...q, status: status as Quote['status'] } : q));
+  };
+
+  const deleteQuote = async (id: string, quoteNumber: string, customerName: string) => {
+    if (!confirm(`確定要刪除報價單 ${quoteNumber}（${customerName}）嗎？\n連同項目、排程、結算表都會一併移除，此動作無法復原。`)) return;
+    // 依賴關係：先刪子資料再刪報價單（若 DB 已設 ON DELETE CASCADE 可省略）
+    await supabase.from(T.settlementItems).delete().in('sheet_id',
+      (await supabase.from(T.settlementSheets).select('id').eq('quote_id', id)).data?.map(r => r.id) ?? []
+    );
+    await supabase.from(T.settlementSheets).delete().eq('quote_id', id);
+    await supabase.from(T.quoteItems).delete().eq('quote_id', id);
+    await supabase.from(T.staffSchedule).delete().eq('quote_id', id);
+    await supabase.from(T.quoteSchedule).delete().eq('quote_id', id);
+    await supabase.from(T.checkedNotes).delete().eq('quote_id', id);
+    const { error } = await supabase.from(T.quotes).delete().eq('id', id);
+    if (error) {
+      alert(`刪除失敗：${error.message}`);
+    } else {
+      setQuotes(prev => prev.filter(q => q.id !== id));
+    }
   };
 
   const getConsultantName = (q: QuoteWithConsultant) =>
@@ -130,6 +151,13 @@ export default function AdminQuoteList() {
                           className="inline-flex items-center gap-1 text-xs bg-green-50 text-green-700 hover:bg-green-100 px-2.5 py-1.5 rounded-lg transition-colors">
                           <ClipboardList size={13} />結算表
                         </Link>
+                        {isAdmin && (
+                          <button onClick={() => deleteQuote(q.id, q.quote_number, q.customer_name)}
+                            className="inline-flex items-center gap-1 text-xs bg-red-50 text-red-600 hover:bg-red-100 px-2.5 py-1.5 rounded-lg transition-colors"
+                            title="刪除報價單（僅最高管理者）">
+                            <Trash2 size={13} />刪除
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>
