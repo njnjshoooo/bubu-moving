@@ -31,21 +31,21 @@ serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
     );
 
-    // 1. 建立 auth 用戶
+    // 1. 建立 auth 用戶（role 帶入 metadata，讓 trigger 可直接寫入正確角色）
     const { data: authData, error: authErr } = await supabase.auth.admin.createUser({
       email,
       email_confirm: true,
-      user_metadata: { display_name },
+      user_metadata: { display_name, role },
     });
     if (authErr) throw authErr;
     const userId = authData.user.id;
 
-    // 2. 寫入 bubu_app_users
-    const { error: userErr } = await supabase.from('bubu_app_users').insert({
+    // 2. Upsert bubu_app_users（避免與 handle_new_user trigger 衝突）
+    const { error: userErr } = await supabase.from('bubu_app_users').upsert({
       id: userId,
       role,
       display_name,
-    });
+    }, { onConflict: 'id' });
     if (userErr) throw userErr;
 
     // 3. 產生密碼設定連結並寄邀請信（非關鍵，失敗不影響帳號建立）

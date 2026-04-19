@@ -20,16 +20,16 @@ serve(async (req) => {
       { auth: { autoRefreshToken: false, persistSession: false } }
     );
 
-    // 1. Create auth user (email_confirm: true = 直接啟用，不需要驗信)
+    // 1. Create auth user (role 帶入 metadata 讓 trigger 可直接使用正確角色)
     const { data: userData, error: userErr } = await supabase.auth.admin.createUser({
       email,
       email_confirm: true,
-      user_metadata: { display_name },
+      user_metadata: { display_name, role: 'consultant' },
     });
     if (userErr) throw new Error(`建立帳號失敗：${userErr.message}`);
     const userId = userData.user.id;
 
-    // 2. Add to bubu_app_users with role = 'consultant' (upsert to avoid conflict with handle_new_user trigger)
+    // 2. Upsert bubu_app_users（避免與 handle_new_user trigger 衝突）
     const { error: profileErr } = await supabase.from('bubu_app_users').upsert({
       id: userId,
       role: 'consultant',
@@ -38,14 +38,24 @@ serve(async (req) => {
     }, { onConflict: 'id' });
     if (profileErr) throw new Error(`寫入 app_users 失敗：${profileErr.message}`);
 
-    // 3. Add to bubu_consultants
-    const { error: consultantErr } = await supabase.from('bubu_consultants').insert({
+    // 3. Insert-or-update bubu_consultants（不依賴 unique constraint）
+    const { data: existingConsultant } = await supabase
+      .from('bubu_consultants')
+      .select('id')
+      .eq('user_id', userId)
+      .maybeSingle();
+
+    const consultantPayload = {
       user_id: userId,
       display_name,
       phone: phone || null,
       address: address || null,
       is_active: true,
-    });
+    };
+
+    const { error: consultantErr } = existingConsultant
+      ? await supabase.from('bubu_consultants').update(consultantPayload).eq('user_id', userId)
+      : await supabase.from('bubu_consultants').insert(consultantPayload);
     if (consultantErr) throw new Error(`寫入 consultants 失敗：${consultantErr.message}`);
 
     // 4. Send password-setup email (non-fatal — won't block account creation)
