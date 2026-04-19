@@ -596,7 +596,7 @@ export default function QuoteBuilder() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {[
                 { field: 'customer_name', label: '客戶姓名 *', placeholder: '王小明' },
-                { field: 'phone', label: '聯絡電話 *', placeholder: '0912-345-678' },
+                { field: 'phone', label: '聯絡電話 *', placeholder: '0912345678' },
                 { field: 'email', label: 'E-mail（發送報價單用）', placeholder: 'client@example.com' },
                 { field: 'tax_id', label: '統一編號', placeholder: '（選填）' },
                 { field: 'company_name', label: '公司抬頭', placeholder: '（選填）' },

@@ -141,7 +141,7 @@ export default function LoginPage() {
                 <div className="relative">
                   <Phone size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
                   <input type="tel" value={phone} onChange={e => setPhone(e.target.value)}
-                    required placeholder="0912-345-678" className={inputCls} />
+                    required placeholder="0912345678" className={inputCls} />
                 </div>
               </div>
               <div>

@@ -349,7 +349,7 @@ export default function AdminConsultants() {
                 <div>
                   <label className="block text-xs font-medium text-gray-500 mb-1.5">電話</label>
                   <input value={addForm.phone} onChange={e => setAddForm({ ...addForm, phone: e.target.value })}
-                    placeholder="0912-345-678"
+                    placeholder="0912345678"
                     className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400" />
                 </div>
                 <div>
@@ -535,7 +535,7 @@ export default function AdminConsultants() {
                     <label className="block text-xs font-medium text-gray-500 mb-1.5">聯絡電話</label>
                     <input value={editForm.phone}
                       onChange={e => setEditForm({ ...editForm, phone: e.target.value })}
-                      placeholder="0912-345-678"
+                      placeholder="0912345678"
                       className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400" />
                   </div>
 

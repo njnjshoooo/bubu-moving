@@ -267,7 +267,7 @@ const ContactForm: React.FC<ContactFormProps> = ({ prefilledData, initialNote })
                         value={formData.phone}
                         onChange={handleChange}
                         className="w-full px-4 py-3 rounded-lg border border-gray-300 focus:border-brand-500 outline-none transition-all"
-                        placeholder="0912-345-678"
+                        placeholder="0912345678"
                       />
                     </div>
                   </div>

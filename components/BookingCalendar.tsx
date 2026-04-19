@@ -394,7 +394,7 @@ export default function BookingCalendar() {
                     <div className="relative">
                       <Phone size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
                       <input value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })}
-                        required placeholder="0912-345-678"
+                        required placeholder="0912345678"
                         className="w-full pl-10 pr-4 py-3 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-400" />
                     </div>
                   </div>
