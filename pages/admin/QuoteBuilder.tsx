@@ -84,7 +84,6 @@ interface ScheduleItemForm {
   start_time: string;
   end_time: string;
   label: string;
-  category: string;
 }
 
 interface QuoteForm {
@@ -338,10 +337,22 @@ export default function QuoteBuilder() {
 
       const { data: schedData } = await supabase.from(T.quoteSchedule)
         .select('*').eq('quote_id', quoteId).order('sort_order');
-      if (schedData) setScheduleItems(schedData.map((s: any) => ({
-        id: s.id, work_date: s.work_date, start_time: s.start_time.slice(0, 5),
-        end_time: s.end_time.slice(0, 5), label: s.label, category: s.category,
-      })));
+      if (schedData) {
+        if (schedData.length > 0) {
+          setScheduleItems(schedData.map((s: any) => ({
+            id: s.id, work_date: s.work_date, start_time: s.start_time.slice(0, 5),
+            end_time: s.end_time.slice(0, 5), label: s.label,
+          })));
+        } else if (staffData && staffData.length > 0) {
+          // Auto-populate schedule from staff items if schedule is empty
+          setScheduleItems(staffData.map((s: any) => ({
+            work_date: s.work_date,
+            start_time: s.start_time.slice(0, 5),
+            end_time: s.end_time.slice(0, 5),
+            label: s.item_name ?? '整聊師',
+          })));
+        }
+      }
     };
     load();
   }, [quoteId]);
@@ -385,12 +396,17 @@ export default function QuoteBuilder() {
   };
 
   // ── Staff Items ──────────────────────────────────────────────────────────────
-  const addStaffItem = (itemName = '整聊師', defaultPrice = 600) =>
+  const addStaffItem = (itemName = '整聊師', defaultPrice = 600) => {
     setStaffItems(prev => [...prev, {
       item_name: itemName,
       work_date: TODAY, start_time: '09:00', end_time: '17:00',
       break_hours: 0, person_count: 2, unit_price: defaultPrice,
     }]);
+    // Also add a matching schedule row
+    setScheduleItems(prev => [...prev, {
+      work_date: TODAY, start_time: '09:00', end_time: '17:00', label: itemName,
+    }]);
+  };
 
   const updateStaffItem = (idx: number, field: keyof StaffItemForm, value: string | number) =>
     setStaffItems(prev => prev.map((item, i) => i === idx ? { ...item, [field]: value } : item));
@@ -409,7 +425,7 @@ export default function QuoteBuilder() {
 
   // ── Schedule Items ───────────────────────────────────────────────────────────
   const addScheduleItem = () => setScheduleItems(prev => [...prev, {
-    work_date: TODAY, start_time: '09:00', end_time: '10:00', label: '', category: '搬家',
+    work_date: TODAY, start_time: '09:00', end_time: '10:00', label: '',
   }]);
   const updateScheduleItem = (idx: number, field: keyof ScheduleItemForm, value: string) =>
     setScheduleItems(prev => prev.map((item, i) => i === idx ? { ...item, [field]: value } : item));
@@ -507,7 +523,7 @@ export default function QuoteBuilder() {
       if (qid && scheduleItems.length > 0) {
         const { error: e } = await supabase.from(T.quoteSchedule).insert(scheduleItems.map((s, idx) => ({
           quote_id: qid, work_date: s.work_date, start_time: s.start_time,
-          end_time: s.end_time, label: s.label, category: s.category, sort_order: idx,
+          end_time: s.end_time, label: s.label, category: '', sort_order: idx,
         })));
         if (e) throw e;
       }
@@ -990,8 +1006,7 @@ export default function QuoteBuilder() {
                       <span className="col-span-2">日期</span>
                       <span className="col-span-2">開始</span>
                       <span className="col-span-2">結束</span>
-                      <span className="col-span-3">作業名稱</span>
-                      <span className="col-span-2">分類</span>
+                      <span className="col-span-5">作業項目</span>
                       <span className="col-span-1" />
                     </div>
                     {scheduleItems.map((item, idx) => (
@@ -1010,12 +1025,8 @@ export default function QuoteBuilder() {
                           onChange={v => updateScheduleItem(idx, 'end_time', v)}
                           className="col-span-2" />
                         <input value={item.label} onChange={e => updateScheduleItem(idx, 'label', e.target.value)}
-                          placeholder="作業名稱"
-                          className="col-span-3 bg-white border border-gray-200 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-brand-400" />
-                        <select value={item.category} onChange={e => updateScheduleItem(idx, 'category', e.target.value)}
-                          className="col-span-2 bg-white border border-gray-200 rounded-lg px-1 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-brand-400">
-                          {SCHEDULE_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
-                        </select>
+                          placeholder="作業項目名稱"
+                          className="col-span-5 bg-white border border-gray-200 rounded-lg px-2 py-1 text-xs text-gray-500 focus:outline-none focus:ring-1 focus:ring-brand-400" />
                         <button onClick={() => removeScheduleItem(idx)} className="col-span-1 flex justify-center p-1 hover:text-red-500 transition-colors">
                           <Trash2 size={14} />
                         </button>
@@ -1173,7 +1184,7 @@ export default function QuoteBuilder() {
               </div>
             </div>
 
-            <div className="mt-6 space-y-2">
+            <div className="mt-6 space-y-2 hidden xl:block">
               <button onClick={() => handleSave(false)} disabled={saving}
                 className="w-full flex items-center justify-center gap-2 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm rounded-xl transition-all disabled:opacity-60">
                 <Save size={15} />儲存

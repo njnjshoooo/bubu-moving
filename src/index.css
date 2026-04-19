@@ -23,6 +23,17 @@ body {
 
 /* ─── Print Styles ─────────────────────────────────────────── */
 @media print {
+  /* Reset layout constraints so ALL pages print (admin layout uses h-screen + overflow-hidden) */
+  html, body {
+    height: auto !important;
+    overflow: visible !important;
+  }
+  div, main, section, article {
+    overflow: visible !important;
+    height: auto !important;
+    max-height: none !important;
+  }
+
   .no-print,
   nav,
   header,

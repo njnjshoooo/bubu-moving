@@ -18,6 +18,7 @@ interface WorkItem {
   _key: string;
   name: string;
   unit_price: number;
+  estimated_qty: number;
   actual_qty: number;
 }
 
@@ -220,15 +221,16 @@ function SheetContent({
         </div>
       </div>
 
-      {/* Two column tables */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 print:grid-cols-2">
-        {/* Left: 作業項目 */}
+      {/* Stacked tables */}
+      <div className="space-y-4">
+        {/* 作業項目 */}
         <div>
           <table className="w-full border border-gray-300 text-xs print:text-xs">
             <thead className="bg-gray-100 print:bg-gray-100">
               <tr>
                 <th className="border border-gray-300 px-2 py-1.5 text-left w-full">作業項目</th>
                 <th className="border border-gray-300 px-2 py-1.5 text-right whitespace-nowrap">單價</th>
+                <th className="border border-gray-300 px-2 py-1.5 text-right whitespace-nowrap">預估數量</th>
                 <th className="border border-gray-300 px-2 py-1.5 text-right whitespace-nowrap">實際使用</th>
                 <th className="border border-gray-300 px-2 py-1.5 text-right whitespace-nowrap">金額</th>
                 {editMode && <th className="border border-gray-300 px-1 py-1.5 w-6 print:hidden" />}
@@ -246,6 +248,11 @@ function SheetContent({
                     {editMode ? (
                       <input {...numVal(item.unit_price, (v) => onWorkChange(i, 'unit_price', v))} />
                     ) : item.unit_price ? item.unit_price.toLocaleString() : ''}
+                  </td>
+                  <td className="border border-gray-200 px-2 py-1 text-right">
+                    {editMode ? (
+                      <input {...numVal(item.estimated_qty, (v) => onWorkChange(i, 'estimated_qty', v))} />
+                    ) : item.estimated_qty || ''}
                   </td>
                   <td className="border border-gray-200 px-2 py-1 text-right">
                     {editMode ? (
@@ -271,12 +278,13 @@ function SheetContent({
                   <td className="border border-gray-200 px-2 py-1">&nbsp;</td>
                   <td className="border border-gray-200 px-2 py-1">&nbsp;</td>
                   <td className="border border-gray-200 px-2 py-1">&nbsp;</td>
+                  <td className="border border-gray-200 px-2 py-1">&nbsp;</td>
                 </tr>
               ))}
             </tbody>
             <tfoot>
               <tr className="bg-gray-50">
-                <td colSpan={editMode ? 3 : 3} className="border border-gray-300 px-2 py-1.5 text-right font-medium text-gray-600">
+                <td colSpan={editMode ? 4 : 4} className="border border-gray-300 px-2 py-1.5 text-right font-medium text-gray-600">
                   含稅金額
                 </td>
                 <td className="border border-gray-300 px-2 py-1.5 text-right font-bold text-brand-700">
@@ -296,7 +304,7 @@ function SheetContent({
           )}
         </div>
 
-        {/* Right: 耗材 */}
+        {/* 耗材 */}
         <div>
           <table className="w-full border border-gray-300 text-xs print:text-xs">
             <thead className="bg-gray-100 print:bg-gray-100">
@@ -432,18 +440,18 @@ export default function SettlementSheet() {
   const loadSheet = async () => {
     setLoading(true);
 
-    // Fetch quote info
-    const { data: quote } = await supabase.from(T.quotes)
-      .select('quote_number, customer_name, consultant_name, address_from, address_to')
-      .eq('id', quoteId!)
-      .maybeSingle();
-    if (quote?.quote_number) setQuoteNumber(quote.quote_number);
-
     // Find or create settlement sheet
     let { data: sheet } = await supabase.from(T.settlementSheets)
       .select('*').eq('quote_id', quoteId!).maybeSingle();
 
     if (!sheet) {
+      // Fetch quote info for new sheet
+      const { data: quote } = await supabase.from(T.quotes)
+        .select('quote_number, customer_name, consultant_name, address_from, address_to')
+        .eq('id', quoteId!)
+        .maybeSingle();
+      if (quote?.quote_number) setQuoteNumber(quote.quote_number);
+
       const { data: newSheet } = await supabase.from(T.settlementSheets).insert({
         quote_id: quoteId,
         customer_name: quote?.customer_name ?? '',
@@ -456,14 +464,41 @@ export default function SettlementSheet() {
 
     if (sheet) {
       setSheetId(sheet.id);
-      setHeader({
-        customer_name: sheet.customer_name ?? '',
-        consultant_name: sheet.consultant_name ?? '',
-        move_datetime: sheet.move_datetime ?? '',
-        address_old: sheet.address_old ?? '',
-        address_new: sheet.address_new ?? '',
-        notes: sheet.notes ?? '',
-      });
+
+      // If address fields are missing, fetch from quote to fill them in
+      if (!sheet.address_old || !sheet.address_new) {
+        const { data: quoteData } = await supabase.from(T.quotes)
+          .select('quote_number, customer_name, consultant_name, address_from, address_to')
+          .eq('id', quoteId!)
+          .maybeSingle();
+
+        if (quoteData?.quote_number) setQuoteNumber(quoteData.quote_number);
+
+        setHeader({
+          customer_name: sheet.customer_name || quoteData?.customer_name || '',
+          consultant_name: sheet.consultant_name || quoteData?.consultant_name || '',
+          move_datetime: sheet.move_datetime || '',
+          address_old: sheet.address_old || quoteData?.address_from || '',
+          address_new: sheet.address_new || quoteData?.address_to || '',
+          notes: sheet.notes || '',
+        });
+      } else {
+        // Fetch quote number separately if we haven't set it yet
+        const { data: quoteData } = await supabase.from(T.quotes)
+          .select('quote_number')
+          .eq('id', quoteId!)
+          .maybeSingle();
+        if (quoteData?.quote_number) setQuoteNumber(quoteData.quote_number);
+
+        setHeader({
+          customer_name: sheet.customer_name ?? '',
+          consultant_name: sheet.consultant_name ?? '',
+          move_datetime: sheet.move_datetime ?? '',
+          address_old: sheet.address_old ?? '',
+          address_new: sheet.address_new ?? '',
+          notes: sheet.notes ?? '',
+        });
+      }
 
       const { data: items } = await supabase.from(T.settlementItems)
         .select('*').eq('sheet_id', sheet.id).order('sort_order');
@@ -472,7 +507,7 @@ export default function SettlementSheet() {
       const supply: SupplyItem[] = [];
       (items ?? []).forEach((item: any) => {
         if (item.section === 'work') {
-          work.push({ _key: item.id, name: item.name, unit_price: item.unit_price, actual_qty: item.actual_qty });
+          work.push({ _key: item.id, name: item.name, unit_price: item.unit_price, estimated_qty: item.estimated_qty ?? 0, actual_qty: item.actual_qty });
         } else {
           supply.push({ _key: item.id, name: item.name, unit_price: item.unit_price, estimated_qty: item.estimated_qty, actual_qty: item.actual_qty });
         }
@@ -489,18 +524,20 @@ export default function SettlementSheet() {
     if (!sheetId) return;
     setSaving(true);
     try {
-      await supabase.from(T.settlementSheets).update({
+      const { error: e1 } = await supabase.from(T.settlementSheets).update({
         ...header,
         updated_at: new Date().toISOString(),
       }).eq('id', sheetId);
+      if (e1) throw e1;
 
-      await supabase.from(T.settlementItems).delete().eq('sheet_id', sheetId);
+      const { error: e2 } = await supabase.from(T.settlementItems).delete().eq('sheet_id', sheetId);
+      if (e2) throw e2;
 
       const allItems = [
         ...workItems.map((item, i) => ({
           sheet_id: sheetId, section: 'work',
           name: item.name, unit_price: item.unit_price,
-          estimated_qty: 0, actual_qty: item.actual_qty, sort_order: i,
+          estimated_qty: item.estimated_qty, actual_qty: item.actual_qty, sort_order: i,
         })),
         ...supplyItems.map((item, i) => ({
           sheet_id: sheetId, section: 'supply',
@@ -509,10 +546,15 @@ export default function SettlementSheet() {
           sort_order: workItems.length + i,
         })),
       ];
-      if (allItems.length > 0) await supabase.from(T.settlementItems).insert(allItems);
+      if (allItems.length > 0) {
+        const { error: e3 } = await supabase.from(T.settlementItems).insert(allItems);
+        if (e3) throw e3;
+      }
 
-      setSavedMsg('已儲存');
-      setTimeout(() => setSavedMsg(''), 2000);
+      setSavedMsg('已儲存 ✓');
+      setTimeout(() => setSavedMsg(''), 2500);
+    } catch (err: any) {
+      alert('儲存失敗：' + (err.message ?? err.details ?? JSON.stringify(err)));
     } finally {
       setSaving(false);
     }
@@ -536,7 +578,7 @@ export default function SettlementSheet() {
       if (item.category === '包材費') {
         newSupply.push({ _key: mkKey(), name: item.name, unit_price: item.unit_price, estimated_qty: item.quantity, actual_qty: 0 });
       } else {
-        newWork.push({ _key: mkKey(), name: item.name, unit_price: item.unit_price, actual_qty: item.quantity });
+        newWork.push({ _key: mkKey(), name: item.name, unit_price: item.unit_price, estimated_qty: item.quantity, actual_qty: 0 });
       }
     });
     setWorkItems((p) => [...p, ...newWork]);
@@ -555,7 +597,7 @@ export default function SettlementSheet() {
   const setSupply = (i: number, f: keyof SupplyItem, v: any) =>
     setSupplyItems((p) => p.map((item, idx) => idx === i ? { ...item, [f]: v } : item));
 
-  const addWork = () => setWorkItems((p) => [...p, { _key: mkKey(), name: '', unit_price: 0, actual_qty: 0 }]);
+  const addWork = () => setWorkItems((p) => [...p, { _key: mkKey(), name: '', unit_price: 0, estimated_qty: 0, actual_qty: 0 }]);
   const addSupply = () => setSupplyItems((p) => [...p, { _key: mkKey(), name: '', unit_price: 0, estimated_qty: 0, actual_qty: 0 }]);
   const removeWork = (i: number) => setWorkItems((p) => p.filter((_, idx) => idx !== i));
   const removeSupply = (i: number) => setSupplyItems((p) => p.filter((_, idx) => idx !== i));
@@ -586,7 +628,6 @@ export default function SettlementSheet() {
           .print\\:border-none { border: none !important; }
           .print\\:border-0 { border: 0 !important; }
           .print\\:bg-gray-100 { background-color: #f3f4f6 !important; print-color-adjust: exact; }
-          .print\\:grid-cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
           .print\\:text-xs { font-size: 0.75rem !important; }
           input { border: none !important; outline: none !important; }
         }

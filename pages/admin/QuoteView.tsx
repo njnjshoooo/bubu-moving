@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { Printer, ArrowLeft, Edit, Send } from 'lucide-react';
+import { Printer, ArrowLeft, Edit, Send, List } from 'lucide-react';
 import { supabase, Quote, NoteTemplate, StaffScheduleItem, QuoteScheduleItem, T } from '../../lib/supabase';
 
 const CATEGORIES = ['搬家車趟費', '計時人員', '包材費'];
@@ -150,7 +150,7 @@ export default function QuoteView() {
       {/* Action Bar */}
       <div className="no-print flex items-center justify-between mb-6 flex-wrap gap-3">
         <div className="flex items-center gap-3">
-          <Link to={`/admin/quotes/${quoteId}`} className="p-2 hover:bg-gray-100 rounded-xl transition-colors">
+          <Link to={`/admin/quotes/${quoteId}`} className="p-2 hover:bg-gray-100 rounded-xl transition-colors" title="返回編輯">
             <ArrowLeft size={18} className="text-gray-600" />
           </Link>
           <div>
@@ -158,10 +158,10 @@ export default function QuoteView() {
             <p className="text-sm font-mono text-gray-400">{quote.quote_number}</p>
           </div>
         </div>
-        <div className="flex gap-2">
-          <Link to={`/admin/quotes/${quoteId}`}
+        <div className="flex gap-2 flex-wrap">
+          <Link to="/admin/quotes"
             className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 text-sm rounded-xl transition-all">
-            <Edit size={15} />編輯
+            <List size={15} />回到列表
           </Link>
           {quote.email && (
             <button onClick={handleSendEmail} disabled={sending}
@@ -410,7 +410,6 @@ export default function QuoteView() {
                   <th className="text-left px-4 py-2 text-xs text-gray-500 font-medium">開始</th>
                   <th className="text-left px-4 py-2 text-xs text-gray-500 font-medium">結束</th>
                   <th className="text-left px-4 py-2 text-xs text-gray-500 font-medium">作業項目</th>
-                  <th className="text-left px-4 py-2 text-xs text-gray-500 font-medium">分類</th>
                 </tr>
               </thead>
               <tbody>
@@ -419,13 +418,7 @@ export default function QuoteView() {
                     <td className="px-4 py-2.5 text-gray-700">{s.work_date}</td>
                     <td className="px-4 py-2.5 text-gray-600">{fmtTime(s.start_time)}</td>
                     <td className="px-4 py-2.5 text-gray-600">{fmtTime(s.end_time)}</td>
-                    <td className="px-4 py-2.5 text-gray-800 font-medium">{s.label}</td>
-                    <td className="px-4 py-2.5">
-                      <span className="text-xs px-2 py-0.5 rounded-full font-medium text-white"
-                        style={{ backgroundColor: CAT_COLORS[s.category] ?? '#6B7280' }}>
-                        {s.category}
-                      </span>
-                    </td>
+                    <td className="px-4 py-2.5 text-gray-500 font-medium">{s.label}</td>
                   </tr>
                 ))}
               </tbody>
@@ -462,7 +455,7 @@ export default function QuoteView() {
                         row.map(s => {
                           const left = ((toMin(s.start_time) - globalDayStart) / globalSpan) * 100;
                           const width = Math.max(((toMin(s.end_time) - toMin(s.start_time)) / globalSpan) * 100, 2);
-                          const color = CAT_COLORS[s.category] ?? '#6B7280';
+                          const color = '#6B7280';
                           return (
                             <div key={s.id}
                               className="absolute flex items-center px-2 rounded text-white text-xs font-medium overflow-hidden whitespace-nowrap"
@@ -481,15 +474,6 @@ export default function QuoteView() {
                   </div>
                 );
               })}
-            </div>
-            {/* Legend */}
-            <div className="flex flex-wrap gap-3 mt-3">
-              {Object.entries(CAT_COLORS).map(([cat, color]) => (
-                <div key={cat} className="flex items-center gap-1.5 text-xs text-gray-600">
-                  <div className="w-3 h-3 rounded-sm" style={{ backgroundColor: color }} />
-                  {cat}
-                </div>
-              ))}
             </div>
           </div>
         )}

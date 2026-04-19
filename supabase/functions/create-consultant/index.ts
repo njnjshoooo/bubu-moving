@@ -29,13 +29,13 @@ serve(async (req) => {
     if (userErr) throw new Error(`建立帳號失敗：${userErr.message}`);
     const userId = userData.user.id;
 
-    // 2. Add to bubu_app_users with role = 'consultant'
-    const { error: profileErr } = await supabase.from('bubu_app_users').insert({
+    // 2. Add to bubu_app_users with role = 'consultant' (upsert to avoid conflict with handle_new_user trigger)
+    const { error: profileErr } = await supabase.from('bubu_app_users').upsert({
       id: userId,
       role: 'consultant',
       display_name,
       phone: phone || null,
-    });
+    }, { onConflict: 'id' });
     if (profileErr) throw new Error(`寫入 app_users 失敗：${profileErr.message}`);
 
     // 3. Add to bubu_consultants

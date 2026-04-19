@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { HashRouter, Routes, Route, Outlet } from 'react-router-dom';
+import React, { useState } from 'react';
+import { BrowserRouter, Routes, Route, useLocation, useNavigate } from 'react-router-dom';
 import { AuthProvider } from './contexts/AuthContext';
 import { AdminRoute, ProtectedRoute, ConsultantRoute, SuperAdminRoute } from './components/ProtectedRoute';
 
@@ -79,24 +79,21 @@ export type PageView = 'home' | 'services' | 'supplies' | 'cases';
 
 // ─── Public Layout ─────────────────────────────────────────────────────────────
 function PublicLayout() {
-  const [currentPage, setCurrentPage] = useState<PageView>('home');
+  const location = useLocation();
+  const navigate = useNavigate();
   const [estimationData, setEstimationData] = useState<EstimationData | null>(null);
   const [contactNote, setContactNote] = useState<string>('');
 
-  useEffect(() => {
-    const handleHashChange = () => {
-      const hash = window.location.hash;
-      if (hash === '#/') return; // React Router hash, ignore
-      if (hash.includes('services-page')) setCurrentPage('services');
-      else if (hash.includes('supplies-page')) setCurrentPage('supplies');
-      else if (hash.includes('cases-page')) setCurrentPage('cases');
-    };
-    window.addEventListener('hashchange', handleHashChange);
-    return () => window.removeEventListener('hashchange', handleHashChange);
-  }, []);
+  // URL 是唯一 source of truth，讓每頁都能被 Google 個別索引
+  const currentPage: PageView =
+    location.pathname.startsWith('/services') ? 'services' :
+    location.pathname.startsWith('/supplies') ? 'supplies' :
+    location.pathname.startsWith('/cases')    ? 'cases'    :
+    'home';
 
   const navigateTo = (page: PageView) => {
-    setCurrentPage(page);
+    const path = page === 'home' ? '/' : `/${page}`;
+    if (location.pathname !== path) navigate(path);
     window.scrollTo(0, 0);
   };
 
@@ -140,11 +137,14 @@ function PublicLayout() {
 // ─── App with Router ────────────────────────────────────────────────────────────
 function App() {
   return (
-    <HashRouter>
+    <BrowserRouter>
       <AuthProvider>
         <Routes>
           {/* Public */}
           <Route path="/" element={<PublicLayout />} />
+          <Route path="/services" element={<PublicLayout />} />
+          <Route path="/supplies" element={<PublicLayout />} />
+          <Route path="/cases" element={<PublicLayout />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
 
@@ -186,7 +186,7 @@ function App() {
           </Route>
         </Routes>
       </AuthProvider>
-    </HashRouter>
+    </BrowserRouter>
   );
 }
 

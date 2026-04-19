@@ -14,7 +14,7 @@ const navItems = [
   { to: '/admin/quotes', label: '報價單', icon: FileText, adminOnly: false },
   { to: '/admin/products', label: '商品管理', icon: Package, adminOnly: false },
   { to: '/admin/orders', label: '訂購單', icon: ShoppingBag, adminOnly: false },
-  { to: '/admin/cases', label: '案例管理', icon: Camera, adminOnly: false },
+  { to: '/admin/cases', label: '案例分享管理', icon: Camera, adminOnly: false },
   { to: '/admin/consultants', label: '帳號管理', icon: Users, adminOnly: false },
   { to: '/admin/settings', label: '系統設定', icon: Settings, adminOnly: false },
 ];

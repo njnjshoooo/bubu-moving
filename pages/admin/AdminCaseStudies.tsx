@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { Plus, Trash2, Eye, EyeOff, Edit3, X } from 'lucide-react';
+import React, { useEffect, useRef, useState } from 'react';
+import { Plus, Trash2, Eye, EyeOff, Edit3, X, Upload } from 'lucide-react';
 import { supabase, CaseStudy, T } from '../../lib/supabase';
 
 const CATEGORIES = ['家庭搬家', '企業搬遷', '長途/回頭車', '特殊物件', '加值服務', '倉儲服務'];
@@ -13,6 +13,8 @@ export default function AdminCaseStudies() {
     title: '', category: '家庭搬家', location: '', work_date: '',
     image_url: '', description: '', testimonial: '', author: '', sort_order: 0,
   });
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const fetchCases = async () => {
     const { data } = await supabase.from(T.caseStudies)
@@ -51,6 +53,20 @@ export default function AdminCaseStudies() {
     fetchCases();
   };
 
+  const handleImageUpload = async (file: File) => {
+    setUploading(true);
+    const ext = file.name.split('.').pop();
+    const path = `cases/${Date.now()}.${ext}`;
+    const { error } = await supabase.storage.from('case-images').upload(path, file, { upsert: true });
+    if (!error) {
+      const { data: urlData } = supabase.storage.from('case-images').getPublicUrl(path);
+      setForm(f => ({ ...f, image_url: urlData.publicUrl }));
+    } else {
+      alert('上傳失敗：' + error.message);
+    }
+    setUploading(false);
+  };
+
   const toggleVisible = async (id: string, current: boolean) => {
     await supabase.from(T.caseStudies).update({ is_visible: !current }).eq('id', id);
     fetchCases();
@@ -66,7 +82,7 @@ export default function AdminCaseStudies() {
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between">
-        <h1 className="text-xl font-bold text-gray-800">案例管理</h1>
+        <h1 className="text-xl font-bold text-gray-800">案例分享管理</h1>
         <button onClick={() => { resetForm(); setShowForm(true); }}
           className="flex items-center gap-2 bg-brand-500 hover:bg-brand-600 text-white text-sm px-4 py-2 rounded-xl transition-colors">
           <Plus size={16} />新增案例
@@ -105,8 +121,7 @@ export default function AdminCaseStudies() {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="text-xs text-gray-500 mb-1 block">日期</label>
-                  <input value={form.work_date} onChange={e => setForm({ ...form, work_date: e.target.value })}
-                    placeholder="2024年3月"
+                  <input type="date" value={form.work_date} onChange={e => setForm({ ...form, work_date: e.target.value })}
                     className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400" />
                 </div>
                 <div>
@@ -116,10 +131,22 @@ export default function AdminCaseStudies() {
                 </div>
               </div>
               <div>
-                <label className="text-xs text-gray-500 mb-1 block">圖片網址</label>
-                <input value={form.image_url} onChange={e => setForm({ ...form, image_url: e.target.value })}
-                  placeholder="https://..."
-                  className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400" />
+                <label className="text-xs text-gray-500 mb-1 block">圖片</label>
+                <div className="flex gap-2">
+                  <input value={form.image_url} onChange={e => setForm({ ...form, image_url: e.target.value })}
+                    placeholder="或貼入圖片網址"
+                    className="flex-1 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400" />
+                  <button type="button" onClick={() => fileInputRef.current?.click()}
+                    disabled={uploading}
+                    className="flex items-center gap-1 border border-gray-200 rounded-xl px-3 py-2 text-sm hover:bg-gray-50 disabled:opacity-50 whitespace-nowrap">
+                    <Upload size={14} />{uploading ? '上傳中…' : '上傳'}
+                  </button>
+                  <input ref={fileInputRef} type="file" accept="image/*" className="hidden"
+                    onChange={e => e.target.files?.[0] && handleImageUpload(e.target.files[0])} />
+                </div>
+                {form.image_url && (
+                  <img src={form.image_url} alt="preview" className="mt-2 rounded-xl h-24 object-cover w-full" />
+                )}
               </div>
               <div>
                 <label className="text-xs text-gray-500 mb-1 block">案例描述</label>
