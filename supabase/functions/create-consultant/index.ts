@@ -1,5 +1,5 @@
 import { serve } from 'https://deno.land/std@0.177.0/http/server.ts';
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -10,15 +10,36 @@ serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
 
   try {
-    const { email, display_name, phone, address } = await req.json();
-    if (!email || !display_name) throw new Error('email 和 display_name 為必填');
+    console.log('[create-consultant] request received');
 
-    // Use service role key to create auth user
+    // ── 1. 驗證呼叫者是 admin/manager（function 內自行驗證，不靠 gateway）───
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) throw new Error('未提供授權，請重新登入');
+
+    const userClient = createClient(
+      Deno.env.get('SUPABASE_URL')!,
+      Deno.env.get('SUPABASE_ANON_KEY')!,
+      { global: { headers: { Authorization: authHeader } } }
+    );
+    const { data: { user: caller }, error: callerErr } = await userClient.auth.getUser();
+    if (callerErr || !caller) throw new Error('授權無效，請重新登入');
+
     const supabase = createClient(
       Deno.env.get('SUPABASE_URL')!,
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!,
       { auth: { autoRefreshToken: false, persistSession: false } }
     );
+
+    const { data: callerProfile } = await supabase.from('bubu_app_users')
+      .select('role').eq('id', caller.id).maybeSingle();
+    if (!callerProfile || !['admin', 'manager'].includes(callerProfile.role)) {
+      throw new Error('權限不足');
+    }
+
+    // ── 2. 解析 body ──────────────────────────────────────────────────────
+    const { email, display_name, phone, address } = await req.json();
+    if (!email || !display_name) throw new Error('email 和 display_name 為必填');
+    console.log('[create-consultant] creating user:', email);
 
     // 1. Create auth user (role 帶入 metadata 讓 trigger 可直接使用正確角色)
     const { data: userData, error: userErr } = await supabase.auth.admin.createUser({
