@@ -1,0 +1,7 @@
+project_id = "nncqqbzgercubtzlunyl"
+
+[functions.create-consultant]
+verify_jwt = false
+
+[functions.create-admin]
+verify_jwt = false
