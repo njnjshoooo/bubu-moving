@@ -8,3 +8,12 @@ verify_jwt = false
 
 [functions.manage-user]
 verify_jwt = false
+
+[functions.gcal-oauth]
+verify_jwt = false
+
+[functions.gcal-sync-booking]
+verify_jwt = false
+
+[functions.gcal-webhook]
+verify_jwt = false

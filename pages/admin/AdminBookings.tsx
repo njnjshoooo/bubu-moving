@@ -4,6 +4,7 @@ import { Search, Filter, FileText, Phone, MapPin, Calendar, Edit2, X, Save, User
 import { supabase, Booking, TimeSlot, Consultant, T } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import { TAIWAN_DISTRICTS, CITIES } from '../../lib/taiwanDistricts';
+import { syncBookingToGcal } from '../../lib/gcalSync';
 
 const STATUSES = ['全部', '待確認', '已確認', '進行中', '已完成', '已取消'];
 const statusColor: Record<string, string> = {
@@ -80,11 +81,13 @@ export default function AdminBookings() {
 
   const updateStatus = async (id: string, status: string) => {
     await supabase.from(T.bookings).update({ status }).eq('id', id);
+    syncBookingToGcal(id);
     fetchBookings();
   };
 
   const updateConsultant = async (id: string, consultantId: string) => {
     await supabase.from(T.bookings).update({ assigned_consultant_id: consultantId || null }).eq('id', id);
+    syncBookingToGcal(id);
     fetchBookings();
   };
 
@@ -120,7 +123,7 @@ export default function AdminBookings() {
       // 若有選時段，更新 current_bookings
       const slot = createSlots.find(s => s.id === createForm.time_slot_id);
 
-      const { error } = await supabase.from(T.bookings).insert({
+      const { data: newBooking, error } = await supabase.from(T.bookings).insert({
         time_slot_id: createForm.time_slot_id || null,
         customer_name: createForm.customer_name.trim(),
         phone: createForm.phone.trim(),
@@ -138,7 +141,7 @@ export default function AdminBookings() {
         service_type: '到府估價',
         is_waitlist: false,
         status: '已確認',
-      });
+      }).select('id').single();
       if (error) throw error;
 
       if (slot) {
@@ -146,6 +149,7 @@ export default function AdminBookings() {
           .update({ current_bookings: (slot.current_bookings ?? 0) + 1 })
           .eq('id', slot.id);
       }
+      if (newBooking?.id) syncBookingToGcal(newBooking.id);
       await fetchBookings();
       setShowCreate(false);
     } catch (err: any) {
@@ -176,6 +180,9 @@ export default function AdminBookings() {
     } else {
       if (!confirm(`確定要刪除 ${customerName} 的預約單嗎？此動作無法復原。`)) return;
     }
+
+    // 先通知 GCal 刪除（趁 booking 還在）
+    await syncBookingToGcal(id, 'delete');
 
     const { error } = await supabase.from(T.bookings).delete().eq('id', id);
     if (error) {
@@ -266,6 +273,9 @@ export default function AdminBookings() {
           });
         } catch (_) { /* non-fatal */ }
       }
+
+      // 同步到 Google Calendar
+      syncBookingToGcal(editingBooking.id);
 
       await fetchBookings();
       closeEdit();

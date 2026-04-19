@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Calendar, Clock, User, Phone, MapPin, CheckCircle, ChevronLeft, ChevronRight, Mail, Search, X } from 'lucide-react';
 import { supabase, TimeSlot, T } from '../lib/supabase';
 import { TAIWAN_DISTRICTS, CITIES } from '../lib/taiwanDistricts';
+import { syncBookingToGcal } from '../lib/gcalSync';
 
 const DAYS = ['日', '一', '二', '三', '四', '五', '六'];
 const MONTHS = ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];
@@ -137,6 +138,8 @@ export default function BookingCalendar() {
     await supabase.from(T.slots)
       .update({ current_bookings: (selectedSlot.current_bookings ?? 0) + 1 })
       .eq('id', selectedSlot.id);
+    // 同步到 Google Calendar（靜默失敗）
+    if (bookingData?.id) syncBookingToGcal(bookingData.id);
     // 寄確認信（非關鍵，失敗不影響主流程）
     if (bookingData?.id && form.email) {
       try {
@@ -180,6 +183,8 @@ export default function BookingCalendar() {
   const handleCancel = async (bookingId: string) => {
     setCancellingId(bookingId);
     await supabase.from(T.bookings).update({ status: '已取消' }).eq('id', bookingId);
+    // 同步到 Google Calendar
+    syncBookingToGcal(bookingId);
     // 寄取消確認信（非關鍵，失敗不影響主流程）
     const booking = lookupResults.find(b => b.id === bookingId);
     if (booking?.email) {

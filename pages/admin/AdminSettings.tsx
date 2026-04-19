@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Plus, Trash2, Bell, Mail, Settings, ToggleLeft, ToggleRight } from 'lucide-react';
 import { supabase, NotificationSetting, T } from '../../lib/supabase';
+import GoogleCalendarSettings from './GoogleCalendarSettings';
 
 export default function AdminSettings() {
   const [settings, setSettings] = useState<NotificationSetting[]>([]);
@@ -75,6 +76,9 @@ export default function AdminSettings() {
         <h1 className="text-2xl font-bold text-gray-800">系統設定</h1>
         <p className="text-sm text-gray-500 mt-1">管理後台通知與系統參數</p>
       </div>
+
+      {/* Google Calendar 整合 */}
+      <GoogleCalendarSettings />
 
       {/* Notification Settings */}
       <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
