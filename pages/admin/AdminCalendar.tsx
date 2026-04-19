@@ -47,13 +47,11 @@ export default function AdminCalendar() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
-  // Batch add state
+  // Batch copy state（從某個日期的所有時段複製到其他日期）
+  const [batchSourceDate, setBatchSourceDate] = useState('');
   const [batchDateFrom, setBatchDateFrom] = useState('');
   const [batchDateTo, setBatchDateTo] = useState('');
   const [batchDows, setBatchDows] = useState<number[]>([1, 2, 3, 4, 5]); // Mon-Fri default
-  const [batchStart, setBatchStart] = useState('09:00');
-  const [batchEnd, setBatchEnd] = useState('12:00');
-  const [batchMax, setBatchMax] = useState(1);
   const [batchSaving, setBatchSaving] = useState(false);
 
   const fetchSlots = async () => {
@@ -122,23 +120,28 @@ export default function AdminCalendar() {
   };
   const previewDates = batchPreviewDates();
 
+  // 來源日期的所有時段
+  const sourceSlots = batchSourceDate ? (slotsByDate[batchSourceDate] ?? []) : [];
+
   const handleBatchAdd = async () => {
-    if (previewDates.length === 0) return;
+    if (previewDates.length === 0 || sourceSlots.length === 0) return;
     setBatchSaving(true);
-    const inserts = previewDates.map(date => ({
-      date,
-      start_time: batchStart,
-      end_time: batchEnd,
-      max_bookings: batchMax,
-    }));
-    // Insert in chunks of 50
+    // 每個目標日期 × 每個來源時段 = 總筆數
+    const inserts = previewDates.flatMap(date =>
+      sourceSlots.map(s => ({
+        date,
+        start_time: s.start_time,
+        end_time: s.end_time,
+        max_bookings: s.max_bookings,
+      }))
+    );
     for (let i = 0; i < inserts.length; i += 50) {
       await supabase.from(T.slots).insert(inserts.slice(i, i + 50));
     }
     await fetchSlots();
     setBatchSaving(false);
     setShowBatch(false);
-    // Reset
+    setBatchSourceDate('');
     setBatchDateFrom('');
     setBatchDateTo('');
     setBatchDows([1, 2, 3, 4, 5]);
@@ -162,67 +165,87 @@ export default function AdminCalendar() {
         <button
           onClick={() => { setShowBatch(!showBatch); setSelectedDate(null); }}
           className="flex items-center gap-2 text-sm bg-gray-800 hover:bg-gray-700 text-white px-4 py-2 rounded-xl transition-all">
-          <Layers size={15} />批量新增時段
+          <Layers size={15} />批量複製時段
         </button>
       </div>
 
-      {/* Batch Add Panel */}
+      {/* Batch Copy Panel — 複製來源日期的所有時段到其他日期 */}
       {showBatch && (
         <div className="bg-white rounded-2xl border border-gray-200 p-5">
-          <h3 className="font-semibold text-gray-800 mb-4">批量新增時段</h3>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+          <h3 className="font-semibold text-gray-800 mb-1">批量複製時段</h3>
+          <p className="text-xs text-gray-500 mb-4">選擇「來源日期」的時段設定，複製到指定日期範圍內的星期。</p>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
             <div>
-              <label className="text-xs text-gray-500 mb-1.5 block">開始日期</label>
+              <label className="text-xs text-gray-500 mb-1.5 block">
+                來源日期 <span className="text-red-400">*</span>
+              </label>
+              <input type="date" value={batchSourceDate} onChange={e => setBatchSourceDate(e.target.value)}
+                className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400" />
+              {batchSourceDate && (
+                <p className="text-xs mt-1.5 text-gray-500">
+                  此日共 <span className="font-semibold text-brand-600">{sourceSlots.length}</span> 個時段
+                </p>
+              )}
+            </div>
+            <div>
+              <label className="text-xs text-gray-500 mb-1.5 block">目標開始日期</label>
               <input type="date" value={batchDateFrom} onChange={e => setBatchDateFrom(e.target.value)}
                 min={today}
                 className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400" />
             </div>
             <div>
-              <label className="text-xs text-gray-500 mb-1.5 block">結束日期</label>
+              <label className="text-xs text-gray-500 mb-1.5 block">目標結束日期</label>
               <input type="date" value={batchDateTo} onChange={e => setBatchDateTo(e.target.value)}
                 min={batchDateFrom || today}
                 className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400" />
             </div>
-            <div>
-              <label className="text-xs text-gray-500 mb-1.5 block">開始時間</label>
-              <TimeInput value={batchStart} onChange={setBatchStart} className="w-full justify-center" />
-            </div>
-            <div>
-              <label className="text-xs text-gray-500 mb-1.5 block">結束時間</label>
-              <TimeInput value={batchEnd} onChange={setBatchEnd} className="w-full justify-center" />
+          </div>
+
+          <div className="mb-4">
+            <label className="text-xs text-gray-500 mb-1.5 block">適用星期</label>
+            <div className="flex gap-1.5">
+              {DOW_LABELS.map((label, dow) => (
+                <button key={dow} type="button"
+                  onClick={() => toggleDow(dow)}
+                  className={`w-9 h-9 rounded-lg text-xs font-medium transition-all ${
+                    batchDows.includes(dow)
+                      ? 'bg-brand-500 text-white'
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  }`}>
+                  {label}
+                </button>
+              ))}
             </div>
           </div>
-          <div className="flex flex-wrap items-center gap-4 mb-4">
-            <div>
-              <label className="text-xs text-gray-500 mb-1.5 block">最大預約人數</label>
-              <input type="number" min={1} max={20} value={batchMax}
-                onChange={e => setBatchMax(+e.target.value)}
-                className="w-24 border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400" />
-            </div>
-            <div>
-              <label className="text-xs text-gray-500 mb-1.5 block">適用星期</label>
-              <div className="flex gap-1.5">
-                {DOW_LABELS.map((label, dow) => (
-                  <button key={dow} type="button"
-                    onClick={() => toggleDow(dow)}
-                    className={`w-9 h-9 rounded-lg text-xs font-medium transition-all ${
-                      batchDows.includes(dow)
-                        ? 'bg-brand-500 text-white'
-                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                    }`}>
-                    {label}
-                  </button>
+
+          {/* 來源時段預覽 */}
+          {batchSourceDate && sourceSlots.length > 0 && (
+            <div className="bg-brand-50 border border-brand-100 rounded-xl p-4 mb-4">
+              <p className="text-sm font-medium text-brand-700 mb-2">將複製以下時段：</p>
+              <div className="flex flex-wrap gap-2">
+                {sourceSlots.map(s => (
+                  <span key={s.id} className="text-xs bg-white border border-brand-200 text-brand-800 px-2.5 py-1 rounded-lg">
+                    {s.start_time.slice(0,5)}–{s.end_time.slice(0,5)} ({s.max_bookings}人)
+                  </span>
                 ))}
               </div>
             </div>
-          </div>
-          {/* Preview */}
+          )}
+
+          {/* 目標日期預覽 */}
           <div className="bg-gray-50 rounded-xl p-4 mb-4">
-            {previewDates.length === 0 ? (
-              <p className="text-sm text-gray-400">請選擇日期範圍與星期篩選，以預覽將新增的日期</p>
+            {!batchSourceDate ? (
+              <p className="text-sm text-gray-400">請先選擇來源日期</p>
+            ) : sourceSlots.length === 0 ? (
+              <p className="text-sm text-orange-600">來源日期尚無時段，請先在該日新增時段</p>
+            ) : previewDates.length === 0 ? (
+              <p className="text-sm text-gray-400">請選擇目標日期範圍與星期</p>
             ) : (
               <>
-                <p className="text-sm font-medium text-gray-700 mb-2">將新增 {previewDates.length} 個時段：</p>
+                <p className="text-sm font-medium text-gray-700 mb-2">
+                  將複製到 {previewDates.length} 個日期，共新增 <span className="text-brand-600 font-bold">{previewDates.length * sourceSlots.length}</span> 個時段：
+                </p>
                 <div className="flex flex-wrap gap-1.5 max-h-28 overflow-y-auto">
                   {previewDates.map(d => (
                     <span key={d} className="text-xs bg-white border border-gray-200 text-gray-600 px-2 py-1 rounded-lg">{d}</span>
@@ -231,10 +254,12 @@ export default function AdminCalendar() {
               </>
             )}
           </div>
+
           <div className="flex gap-2">
-            <button onClick={handleBatchAdd} disabled={batchSaving || previewDates.length === 0}
+            <button onClick={handleBatchAdd}
+              disabled={batchSaving || previewDates.length === 0 || sourceSlots.length === 0}
               className="flex items-center gap-2 px-5 py-2 bg-brand-500 hover:bg-brand-600 text-white text-sm rounded-xl transition-all disabled:opacity-60">
-              <Plus size={15} />{batchSaving ? '新增中...' : `確認新增 ${previewDates.length > 0 ? previewDates.length + ' 個' : ''}`}
+              <Plus size={15} />{batchSaving ? '複製中...' : (previewDates.length > 0 && sourceSlots.length > 0 ? `確認複製 ${previewDates.length * sourceSlots.length} 個時段` : '確認複製')}
             </button>
             <button onClick={() => setShowBatch(false)}
               className="px-4 py-2 text-sm text-gray-600 hover:bg-gray-100 rounded-xl transition-colors">
