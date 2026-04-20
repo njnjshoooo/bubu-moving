@@ -124,11 +124,11 @@ const Navbar: React.FC<NavbarProps> = ({ currentPage, onNavigate }) => {
               </a>
             ))}
             <a
-              href="tel:0912345678"
+              href="tel:0277550920"
               className="flex items-center gap-2 bg-brand-600 hover:bg-brand-700 text-white px-4 py-2 rounded-full font-bold transition-all transform hover:scale-105 shadow-md ml-2"
             >
               <Phone size={18} />
-              <span>0912-345-678</span>
+              <span>02 7755 0920</span>
             </a>
             {/* 桌面版：只對一般會員顯示；後台員工不顯示 */}
             {!loading && user && isMember ? (

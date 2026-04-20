@@ -50,10 +50,10 @@ const Footer: React.FC = () => {
            <div>
             <h4 className="font-bold text-lg mb-6 text-white">聯絡資訊</h4>
             <ul className="space-y-3 text-gray-400">
-              <li>電話：0912-345-678</li>
-              <li>LINE：@bubumoving</li>
-              <li>信箱：service@bubumoving.com</li>
-              <li>地址：台北市中山區某某路100號</li>
+              <li>電話：02 7755 0920</li>
+              <li>信箱：service@tidyman.tw</li>
+              <li>地址：台北市信義區松德路118巷3號 1樓</li>
+              <li>營業時間：週一至週日 9:30–18:30</li>
             </ul>
           </div>
         </div>

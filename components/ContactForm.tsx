@@ -153,17 +153,18 @@ const ContactForm: React.FC<ContactFormProps> = ({ prefilledData, initialNote })
                 </div>
                 <div>
                   <h4 className="text-lg font-bold">服務專線</h4>
-                  <p className="text-brand-100 text-2xl font-bold font-mono mt-1">0912-345-678</p>
+                  <p className="text-brand-100 text-2xl font-bold font-mono mt-1">02 7755 0920</p>
+                  <p className="text-brand-100 text-xs mt-1 opacity-80">週一至週日 9:30–18:30</p>
                 </div>
               </div>
-              
+
               <div className="flex items-start gap-4">
                  <div className="p-3 bg-white/10 rounded-lg">
                   <Mail className="w-6 h-6 text-white" />
                 </div>
                 <div>
                   <h4 className="text-lg font-bold">Email</h4>
-                  <p className="text-brand-100">service@bubumoving.com</p>
+                  <p className="text-brand-100">service@tidyman.tw</p>
                 </div>
               </div>
 

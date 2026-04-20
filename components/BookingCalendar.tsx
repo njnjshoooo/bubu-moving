@@ -234,8 +234,8 @@ export default function BookingCalendar() {
             </div>
             <div className="bg-brand-50 border border-brand-100 rounded-xl p-4 text-sm text-brand-800 text-left leading-relaxed">
               <p>感謝您的預約！</p>
-              <p className="mt-1">我們已收到您的估價預約，將於 24 小時內以電話或 LINE 與您確認。</p>
-              <p className="mt-1">如有緊急需求，請直接撥打 <strong>02-77550920</strong>。</p>
+              <p className="mt-1">我們已收到您的估價預約，將於 24 小時內以電話與您確認。</p>
+              <p className="mt-1">如有緊急需求，請直接撥打 <strong>02 7755 0920</strong>。</p>
             </div>
             <button onClick={resetForm} className="mt-6 text-sm text-brand-600 hover:underline">再預約一個時段</button>
           </div>
