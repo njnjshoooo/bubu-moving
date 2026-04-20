@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { Truck, Mail, Lock, Phone, AlertCircle } from 'lucide-react';
+import { Mail, Lock, Phone, AlertCircle } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -78,9 +78,7 @@ export default function LoginPage() {
         {/* Logo */}
         <div className="text-center mb-8">
           <Link to="/" className="inline-flex items-center gap-3">
-            <div className="w-12 h-12 bg-brand-500 rounded-xl flex items-center justify-center">
-              <Truck className="text-white" size={24} />
-            </div>
+            <img src="/logo-icon.png" alt="步步搬家" className="h-12 w-auto" />
             <span className="text-2xl font-bold text-gray-800">步步搬家</span>
           </Link>
           <p className="mt-3 text-gray-500">登入您的帳號</p>

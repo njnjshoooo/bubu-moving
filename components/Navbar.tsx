@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Menu, X, Phone, Truck, Calculator, LogIn, User } from 'lucide-react';
+import { Menu, X, Phone, Calculator, LogIn, User } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { PageView } from '../App';
 import { useAuth } from '../contexts/AuthContext';
@@ -30,8 +30,8 @@ const Navbar: React.FC<NavbarProps> = ({ currentPage, onNavigate }) => {
   const needsWhiteBg = isScrolled || currentPage !== 'home';
   // 判斷文字顏色
   const textColor = needsWhiteBg ? 'text-gray-700 hover:text-brand-600' : 'text-white hover:text-brand-200 drop-shadow-sm';
-  const logoBg = needsWhiteBg ? 'bg-brand-500' : 'bg-white';
-  const logoIconColor = needsWhiteBg ? 'text-white' : 'text-brand-600';
+  // Logo：深色 hero 背景顯示白版，淺色 scroll 背景顯示彩版
+  const logoSrc = needsWhiteBg ? '/logo-icon.png' : '/logo-icon-white.png';
 
   const handleLinkClick = (e: React.MouseEvent<HTMLAnchorElement>, target: string) => {
     e.preventDefault();
@@ -99,9 +99,7 @@ const Navbar: React.FC<NavbarProps> = ({ currentPage, onNavigate }) => {
           {/* Logo */}
           <div className="flex-shrink-0 flex items-center">
             <a href="#" onClick={(e) => handleLinkClick(e, 'hero')} className="flex items-center gap-2">
-              <div className={`p-2 rounded-lg ${logoBg}`}>
-                <Truck className={`h-6 w-6 ${logoIconColor}`} />
-              </div>
+              <img src={logoSrc} alt="步步搬家 BuBu Moving" className="h-10 w-auto" />
               <span className={`font-bold text-2xl ${needsWhiteBg ? 'text-gray-900' : 'text-white drop-shadow-md'}`}>
                 步步搬家
               </span>

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Truck, Facebook, Instagram, Twitter } from 'lucide-react';
+import { Facebook, Instagram, Twitter } from 'lucide-react';
 
 const Footer: React.FC = () => {
   return (
@@ -10,7 +10,7 @@ const Footer: React.FC = () => {
           {/* Brand */}
           <div className="space-y-4">
             <div className="flex items-center gap-2 mb-4">
-               <Truck className="h-8 w-8 text-brand-500" />
+               <img src="/logo-icon-white.png" alt="步步搬家" className="h-10 w-auto" />
                <span className="font-bold text-2xl">步步搬家</span>
             </div>
             <p className="text-gray-400 text-sm leading-relaxed">

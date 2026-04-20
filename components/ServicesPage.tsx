@@ -452,7 +452,7 @@ const ServicesPage: React.FC<ServicesPageProps> = ({ onNavigateHome }) => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                 {/* Method 1 */}
                 <div className="border border-gray-200 rounded-2xl p-6 hover:border-brand-400 transition-colors">
-                    <h3 className="text-2xl font-bold text-brand-600 mb-2">🚛 以車計價</h3>
+                    <h3 className="text-2xl font-bold text-brand-600 mb-2">🚛 搬家服務</h3>
                     <p className="text-gray-500 text-sm mb-6 border-b border-gray-100 pb-4">
                         實際搬運車數 × 每車單價
                     </p>
@@ -461,11 +461,11 @@ const ServicesPage: React.FC<ServicesPageProps> = ({ onNavigateHome }) => {
                             <span className="font-bold">適用對象：</span> 一般家庭、物品數量不確定者。
                         </p>
                         <p className="text-gray-700">
-                            <span className="font-bold">計算方式：</span> 
+                            <span className="font-bold">計算方式：</span>
                             以3.5噸標準貨車為單位，裝滿一車算一車的費用。若最後一車未滿半車，則以半車計價（需視合約內容而定）。
                         </p>
                         <div className="bg-gray-50 p-4 rounded-lg text-sm text-gray-600">
-                            <p>費用包含：搬運工資、油資、基本防護。</p>
+                            <p>費用包含：車趟費、包材費、基本防護。</p>
                             <p>額外費用：樓層費（無電梯）、步行距離過長、特殊拆卸。</p>
                         </div>
                     </div>
@@ -473,20 +473,20 @@ const ServicesPage: React.FC<ServicesPageProps> = ({ onNavigateHome }) => {
 
                 {/* Method 2 */}
                 <div className="border border-gray-200 rounded-2xl p-6 hover:border-brand-400 transition-colors">
-                    <h3 className="text-2xl font-bold text-gray-900 mb-2">📋 包價制 (一口價)</h3>
+                    <h3 className="text-2xl font-bold text-gray-900 mb-2">📋 懶人搬家（一條龍搬家）</h3>
                     <p className="text-gray-500 text-sm mb-6 border-b border-gray-100 pb-4">
-                        經評估後，約定總金額承包
+                        懶人搬家的最佳選擇
                     </p>
                      <div className="space-y-4">
                         <p className="text-gray-700">
-                            <span className="font-bold">適用對象：</span> 企業搬遷、長途搬運、特殊貴重物品、精緻搬家。
+                            <span className="font-bold">適用對象：</span> 企業搬遷、精緻搬家、有小孩家庭、忙碌的人。
                         </p>
                         <p className="text-gray-700">
-                            <span className="font-bold">計算方式：</span> 
-                            由估價師到府或線上視訊，評估所有需搬運物品及環境後，提供一個最終總價格。
+                            <span className="font-bold">計算方式：</span>
+                            由估價師到府或線上視訊，評估所有需搬運物品及環境後，提供包含打包、拆箱、包材、車趟等費用。
                         </p>
                         <div className="bg-gray-50 p-4 rounded-lg text-sm text-gray-600">
-                             <p>優點：預算固定，不用擔心當天車輛裝載問題。</p>
+                             <p>優點：從物品打包到新家拆上架，有專人處理好。</p>
                              <p>注意：需明確列出搬運清單，清單外物品可能需另外計費。</p>
                         </div>
                     </div>
