@@ -11,8 +11,8 @@ import Services from './components/Services';
 import Process from './components/Process';
 import Estimation from './components/Estimation';
 import Testimonials from './components/Testimonials';
-import ContactForm from './components/ContactForm';
 import Footer from './components/Footer';
+import BookingPage from './components/BookingPage';
 import ServicesPage from './components/ServicesPage';
 import SuppliesPage from './components/SuppliesPage';
 import About from './components/About';
@@ -75,20 +75,20 @@ export interface EstimationData {
   totalCost: number;
 }
 
-export type PageView = 'home' | 'services' | 'supplies' | 'cases';
+export type PageView = 'home' | 'services' | 'supplies' | 'cases' | 'book';
 
 // ─── Public Layout ─────────────────────────────────────────────────────────────
 function PublicLayout() {
   const location = useLocation();
   const navigate = useNavigate();
-  const [estimationData, setEstimationData] = useState<EstimationData | null>(null);
-  const [contactNote, setContactNote] = useState<string>('');
+  const [, setEstimationData] = useState<EstimationData | null>(null);
 
   // URL 是唯一 source of truth，讓每頁都能被 Google 個別索引
   const currentPage: PageView =
     location.pathname.startsWith('/services') ? 'services' :
     location.pathname.startsWith('/supplies') ? 'supplies' :
     location.pathname.startsWith('/cases')    ? 'cases'    :
+    location.pathname.startsWith('/book')     ? 'book'     :
     'home';
 
   const navigateTo = (page: PageView) => {
@@ -98,10 +98,11 @@ function PublicLayout() {
   };
 
   const handleOrderSupplies = (orderSummary: string) => {
-    setContactNote(orderSummary);
+    // 把訂購摘要暫存到 sessionStorage，BookingCalendar 的 notes 可以預填
+    sessionStorage.setItem('booking_prefill_note', orderSummary);
     navigateTo('home');
     setTimeout(() => {
-      document.getElementById('contact')?.scrollIntoView({ behavior: 'smooth' });
+      document.getElementById('booking')?.scrollIntoView({ behavior: 'smooth' });
     }, 100);
   };
 
@@ -116,15 +117,16 @@ function PublicLayout() {
             <About />
             <Services />
             <Estimation onEstimate={setEstimationData} />
-            <BookingCalendar />
             <Process />
             <Testimonials />
-            <ContactForm prefilledData={estimationData} initialNote={contactNote} />
+            <BookingCalendar />
           </>
         ) : currentPage === 'services' ? (
           <ServicesPage onNavigateHome={() => navigateTo('home')} />
         ) : currentPage === 'cases' ? (
           <CaseStudyPage onNavigateHome={() => navigateTo('home')} />
+        ) : currentPage === 'book' ? (
+          <BookingPage />
         ) : (
           <SuppliesPage onOrder={handleOrderSupplies} />
         )}
@@ -145,6 +147,7 @@ function App() {
           <Route path="/services" element={<PublicLayout />} />
           <Route path="/supplies" element={<PublicLayout />} />
           <Route path="/cases" element={<PublicLayout />} />
+          <Route path="/book" element={<PublicLayout />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
 

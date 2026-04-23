@@ -73,6 +73,13 @@ export default function BookingCalendar() {
       .gte('date', today)
       .order('date').order('start_time')
       .then(({ data }) => setSlots((data ?? []) as TimeSlot[]));
+
+    // 若從包材訂購流程帶來的備註，預填進 notes 欄
+    const prefillNote = sessionStorage.getItem('booking_prefill_note');
+    if (prefillNote) {
+      setForm(f => ({ ...f, notes: prefillNote }));
+      sessionStorage.removeItem('booking_prefill_note');
+    }
   }, []);
 
   const year = currentMonth.getFullYear();

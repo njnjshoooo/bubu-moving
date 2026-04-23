@@ -62,6 +62,11 @@ const Navbar: React.FC<NavbarProps> = ({ currentPage, onNavigate }) => {
       return;
     }
 
+    if (target === 'book-page') {
+      onNavigate('book');
+      return;
+    }
+
     // 如果目標是首頁的錨點
     if (currentPage !== 'home') {
       onNavigate('home');
@@ -89,7 +94,7 @@ const Navbar: React.FC<NavbarProps> = ({ currentPage, onNavigate }) => {
     { name: '案例分享', target: 'cases-page' },
     { name: '關於我們', target: 'about' },
     { name: '費用試算', target: 'estimate' },
-    { name: '預約到府估價', target: 'contact' },
+    { name: '預約到府估價', target: 'book-page' },
   ];
 
   return (
@@ -114,9 +119,10 @@ const Navbar: React.FC<NavbarProps> = ({ currentPage, onNavigate }) => {
                 href={`#${link.target}`}
                 onClick={(e) => handleLinkClick(e, link.target)}
                 className={`flex items-center gap-1 font-medium text-base lg:text-lg transition-colors ${textColor} 
-                ${(currentPage === 'services' && link.target.includes('services')) || 
+                ${(currentPage === 'services' && link.target.includes('services')) ||
                   (currentPage === 'supplies' && link.target === 'supplies-page') ||
-                  (currentPage === 'cases' && link.target === 'cases-page') ? 'text-brand-600 font-bold' : ''}`}
+                  (currentPage === 'cases' && link.target === 'cases-page') ||
+                  (currentPage === 'book' && link.target === 'book-page') ? 'text-brand-600 font-bold' : ''}`}
               >
                 {link.name}
               </a>
