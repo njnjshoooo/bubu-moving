@@ -2,6 +2,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { Printer, ArrowLeft, Edit, Send, List } from 'lucide-react';
 import { supabase, Quote, NoteTemplate, StaffScheduleItem, QuoteScheduleItem, T } from '../../lib/supabase';
+import { useBasePath } from '../../lib/useBasePath';
 
 const CATEGORIES = ['搬家車趟費', '計時人員', '包材費'];
 
@@ -47,6 +48,7 @@ const packIntoRows = (items: QuoteScheduleItem[]): QuoteScheduleItem[][] => {
 
 export default function QuoteView() {
   const { quoteId } = useParams();
+  const basePath = useBasePath();
   const [quote, setQuote] = useState<Quote | null>(null);
   const [checkedNotes, setCheckedNotes] = useState<NoteTemplate[]>([]);
   const [staffItems, setStaffItems] = useState<StaffScheduleItem[]>([]);
@@ -150,7 +152,7 @@ export default function QuoteView() {
       {/* Action Bar */}
       <div className="no-print flex items-center justify-between mb-6 flex-wrap gap-3">
         <div className="flex items-center gap-3">
-          <Link to={`/admin/quotes/${quoteId}`} className="p-2 hover:bg-gray-100 rounded-xl transition-colors" title="返回編輯">
+          <Link to={`${basePath}/quotes/${quoteId}`} className="p-2 hover:bg-gray-100 rounded-xl transition-colors" title="返回編輯">
             <ArrowLeft size={18} className="text-gray-600" />
           </Link>
           <div>
@@ -159,7 +161,7 @@ export default function QuoteView() {
           </div>
         </div>
         <div className="flex gap-2 flex-wrap">
-          <Link to="/admin/quotes"
+          <Link to={`${basePath}/quotes`}
             className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 text-sm rounded-xl transition-all">
             <List size={15} />回到列表
           </Link>

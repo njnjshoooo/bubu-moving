@@ -1,11 +1,14 @@
 import React, { useState } from 'react';
 import { Outlet, NavLink, useNavigate } from 'react-router-dom';
-import { Truck, CalendarDays, User, LogOut, Menu, BarChart3 } from 'lucide-react';
+import { Truck, CalendarDays, User, LogOut, Menu, BarChart3, Calendar, ClipboardList, FileText } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 
 const navItems = [
   { to: '/consultant/dashboard', label: '業績儀表板', icon: BarChart3 },
   { to: '/consultant', label: '我的排程', icon: CalendarDays, end: true },
+  { to: '/consultant/calendar', label: '行事曆管理', icon: Calendar },
+  { to: '/consultant/bookings', label: '預約單管理', icon: ClipboardList },
+  { to: '/consultant/quotes', label: '報價單', icon: FileText },
   { to: '/consultant/profile', label: '個人資料', icon: User },
 ];
 

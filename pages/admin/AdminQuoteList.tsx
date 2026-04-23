@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { Plus, Eye, Edit, Search, ClipboardList, Trash2 } from 'lucide-react';
 import { supabase, Quote, Consultant, T } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
+import { useBasePath } from '../../lib/useBasePath';
 
 const statusColor: Record<string, string> = {
   '草稿':  'bg-gray-100 text-gray-500',
@@ -17,6 +18,7 @@ interface QuoteWithConsultant extends Quote {
 
 export default function AdminQuoteList() {
   const { isAdmin } = useAuth();
+  const basePath = useBasePath();
   const [quotes, setQuotes] = useState<QuoteWithConsultant[]>([]);
   const [consultants, setConsultants] = useState<Consultant[]>([]);
   const [search, setSearch] = useState('');
@@ -79,7 +81,7 @@ export default function AdminQuoteList() {
           <h1 className="text-2xl font-bold text-gray-800">報價單管理</h1>
           <p className="text-sm text-gray-500 mt-1">共 {filtered.length} 份報價單</p>
         </div>
-        <Link to="/admin/quotes/new"
+        <Link to={`${basePath}/quotes/new`}
           className="flex items-center gap-2 px-4 py-2 bg-brand-500 hover:bg-brand-600 text-white text-sm rounded-xl transition-all">
           <Plus size={15} />新增報價單
         </Link>
@@ -107,7 +109,7 @@ export default function AdminQuoteList() {
         ) : filtered.length === 0 ? (
           <div className="p-12 text-center">
             <p className="text-gray-400 mb-4">尚無報價單</p>
-            <Link to="/admin/quotes/new" className="text-brand-600 hover:underline text-sm">建立第一份報價單</Link>
+            <Link to={`${basePath}/quotes/new`} className="text-brand-600 hover:underline text-sm">建立第一份報價單</Link>
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -139,15 +141,15 @@ export default function AdminQuoteList() {
                     <td className="px-4 py-3 text-gray-500 text-xs">{new Date(q.created_at).toLocaleDateString('zh-TW')}</td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <Link to={`/admin/quotes/${q.id}/view`}
+                        <Link to={`${basePath}/quotes/${q.id}/view`}
                           className="inline-flex items-center gap-1 text-xs bg-brand-50 text-brand-600 hover:bg-brand-100 px-2.5 py-1.5 rounded-lg transition-colors">
                           <Eye size={13} />預覽
                         </Link>
-                        <Link to={`/admin/quotes/${q.id}`}
+                        <Link to={`${basePath}/quotes/${q.id}`}
                           className="inline-flex items-center gap-1 text-xs bg-gray-100 text-gray-600 hover:bg-gray-200 px-2.5 py-1.5 rounded-lg transition-colors">
                           <Edit size={13} />編輯
                         </Link>
-                        <Link to={`/admin/settlement/${q.id}`}
+                        <Link to={`${basePath}/settlement/${q.id}`}
                           className="inline-flex items-center gap-1 text-xs bg-green-50 text-green-700 hover:bg-green-100 px-2.5 py-1.5 rounded-lg transition-colors">
                           <ClipboardList size={13} />結算表
                         </Link>

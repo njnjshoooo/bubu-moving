@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Plus, Trash2, ChevronLeft, ChevronRight, Eye, EyeOff, Calendar, Layers } from 'lucide-react';
 import { supabase, TimeSlot, T } from '../../lib/supabase';
+import { useAuth } from '../../contexts/AuthContext';
 
 const DAYS = ['日', '一', '二', '三', '四', '五', '六'];
 const MONTHS = ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月'];
@@ -38,6 +39,8 @@ const TimeInput: React.FC<{
 };
 
 export default function AdminCalendar() {
+  const { isAdmin, isManager } = useAuth();
+  const canEdit = isAdmin || isManager; // 顧問只能檢視
   const [slots, setSlots] = useState<TimeSlot[]>([]);
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
@@ -162,11 +165,13 @@ export default function AdminCalendar() {
           <h1 className="text-2xl font-bold text-gray-800">行事曆管理</h1>
           <p className="text-sm text-gray-500 mt-1">設定客戶可預約的估價時段</p>
         </div>
-        <button
-          onClick={() => { setShowBatch(!showBatch); setSelectedDate(null); }}
-          className="flex items-center gap-2 text-sm bg-gray-800 hover:bg-gray-700 text-white px-4 py-2 rounded-xl transition-all">
-          <Layers size={15} />批量複製時段
-        </button>
+        {canEdit && (
+          <button
+            onClick={() => { setShowBatch(!showBatch); setSelectedDate(null); }}
+            className="flex items-center gap-2 text-sm bg-gray-800 hover:bg-gray-700 text-white px-4 py-2 rounded-xl transition-all">
+            <Layers size={15} />批量複製時段
+          </button>
+        )}
       </div>
 
       {/* Batch Copy Panel — 複製來源日期的所有時段到其他日期 */}
@@ -329,12 +334,14 @@ export default function AdminCalendar() {
             <div className="bg-white rounded-2xl border border-gray-100 p-5">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="font-semibold text-gray-800">{selectedDate}</h3>
-                <button
-                  onClick={() => setShowForm(!showForm)}
-                  className="flex items-center gap-1.5 text-sm bg-brand-500 hover:bg-brand-600 text-white px-3 py-1.5 rounded-lg transition-all">
-                  <Plus size={14} />
-                  新增時段
-                </button>
+                {canEdit && (
+                  <button
+                    onClick={() => setShowForm(!showForm)}
+                    className="flex items-center gap-1.5 text-sm bg-brand-500 hover:bg-brand-600 text-white px-3 py-1.5 rounded-lg transition-all">
+                    <Plus size={14} />
+                    新增時段
+                  </button>
+                )}
               </div>
 
               {/* Add form */}
@@ -377,15 +384,17 @@ export default function AdminCalendar() {
                         <p className="text-sm font-medium text-gray-800">{slot.start_time.slice(0,5)} – {slot.end_time.slice(0,5)}</p>
                         <p className="text-xs text-gray-500">{slot.current_bookings}/{slot.max_bookings} 已預約</p>
                       </div>
-                      <div className="flex items-center gap-1">
-                        <button onClick={() => handleToggle(slot)} title={slot.is_active ? '停用' : '啟用'}
-                          className="p-1.5 hover:bg-white rounded-lg transition-colors">
-                          {slot.is_active ? <Eye size={15} className="text-green-600" /> : <EyeOff size={15} className="text-gray-400" />}
-                        </button>
-                        <button onClick={() => handleDelete(slot.id)} className="p-1.5 hover:bg-white rounded-lg transition-colors">
-                          <Trash2 size={15} className="text-red-400" />
-                        </button>
-                      </div>
+                      {canEdit && (
+                        <div className="flex items-center gap-1">
+                          <button onClick={() => handleToggle(slot)} title={slot.is_active ? '停用' : '啟用'}
+                            className="p-1.5 hover:bg-white rounded-lg transition-colors">
+                            {slot.is_active ? <Eye size={15} className="text-green-600" /> : <EyeOff size={15} className="text-gray-400" />}
+                          </button>
+                          <button onClick={() => handleDelete(slot.id)} className="p-1.5 hover:bg-white rounded-lg transition-colors">
+                            <Trash2 size={15} className="text-red-400" />
+                          </button>
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>

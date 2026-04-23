@@ -169,10 +169,18 @@ function App() {
 
           {/* Consultant */}
           <Route path="/consultant" element={<ConsultantRoute><ConsultantLayout /></ConsultantRoute>}>
-            <Route path="settlement/:quoteId" element={<SettlementSheet />} />
             <Route index element={<ConsultantSchedule />} />
             <Route path="dashboard" element={<ConsultantDashboard />} />
             <Route path="profile" element={<ConsultantProfile />} />
+            {/* 顧問也能使用的管理功能（reuse 後台頁面，內部依 role 控制行為）*/}
+            <Route path="calendar" element={<AdminCalendar />} />
+            <Route path="bookings" element={<AdminBookings />} />
+            <Route path="quotes" element={<AdminQuoteList />} />
+            <Route path="quotes/new" element={<QuoteBuilder />} />
+            <Route path="quotes/new/:bookingId" element={<QuoteBuilder />} />
+            <Route path="quotes/:quoteId" element={<QuoteBuilder />} />
+            <Route path="quotes/:quoteId/view" element={<QuoteView />} />
+            <Route path="settlement/:quoteId" element={<SettlementSheet />} />
           </Route>
 
           {/* Member */}

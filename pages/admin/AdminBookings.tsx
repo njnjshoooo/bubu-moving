@@ -5,6 +5,7 @@ import { supabase, Booking, TimeSlot, Consultant, T } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import { TAIWAN_DISTRICTS, CITIES } from '../../lib/taiwanDistricts';
 import { syncBookingToGcal } from '../../lib/gcalSync';
+import { useBasePath } from '../../lib/useBasePath';
 
 const STATUSES = ['全部', '待確認', '已確認', '進行中', '已完成', '已取消'];
 const statusColor: Record<string, string> = {
@@ -28,6 +29,7 @@ interface EditForm {
 
 export default function AdminBookings() {
   const { isAdmin } = useAuth();
+  const basePath = useBasePath();
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [filtered, setFiltered] = useState<Booking[]>([]);
   const [search, setSearch] = useState('');
@@ -449,7 +451,7 @@ export default function AdminBookings() {
                           className="inline-flex items-center gap-1 text-xs bg-gray-100 text-gray-600 hover:bg-gray-200 px-2.5 py-1.5 rounded-lg transition-colors">
                           <Edit2 size={12} />編輯
                         </button>
-                        <Link to={`/admin/quotes/new/${b.id}`}
+                        <Link to={`${basePath}/quotes/new/${b.id}`}
                           className="inline-flex items-center gap-1 text-xs bg-brand-50 text-brand-600 hover:bg-brand-100 px-2.5 py-1.5 rounded-lg transition-colors">
                           <FileText size={12} />報價
                         </Link>

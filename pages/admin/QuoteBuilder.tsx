@@ -4,6 +4,7 @@ import { Plus, Trash2, ChevronDown, ChevronUp, Save, Eye, ArrowLeft, Users, Cale
 import { supabase, NoteTemplate, T } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import { TAIWAN_DISTRICTS, CITIES } from '../../lib/taiwanDistricts';
+import { useBasePath } from '../../lib/useBasePath';
 
 // ─── Address parse helper ────────────────────────────────────────────────────
 function parseAddress(addr: string): { city: string; district: string; detail: string } {
@@ -189,6 +190,7 @@ export default function QuoteBuilder() {
   const { bookingId, quoteId } = useParams();
   const navigate = useNavigate();
   const { profile } = useAuth();
+  const basePath = useBasePath();
 
   const [form, setForm] = useState<QuoteForm>({
     customer_name: '', phone: '', email: '', tax_id: '',
@@ -534,7 +536,7 @@ export default function QuoteBuilder() {
         if (e) throw e;
       }
       showToast('success');
-      if (redirectToView && qid) navigate(`/admin/quotes/${qid}/view`);
+      if (redirectToView && qid) navigate(`${basePath}/quotes/${qid}/view`);
     } catch (err: any) {
       showToast('error');
       const msg: string = err?.message ?? err?.details ?? JSON.stringify(err);
@@ -551,7 +553,7 @@ export default function QuoteBuilder() {
       {/* ── Header ── */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div className="flex items-center gap-3">
-          <Link to="/admin/quotes" className="p-2 hover:bg-gray-100 rounded-xl transition-colors">
+          <Link to={`${basePath}/quotes`} className="p-2 hover:bg-gray-100 rounded-xl transition-colors">
             <ArrowLeft size={18} className="text-gray-600" />
           </Link>
           <div>
