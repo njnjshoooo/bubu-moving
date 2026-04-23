@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { Printer, ArrowLeft, Edit, Send, List } from 'lucide-react';
+import { Printer, ArrowLeft, Edit, Send, List, FileSignature } from 'lucide-react';
 import { supabase, Quote, NoteTemplate, StaffScheduleItem, QuoteScheduleItem, T } from '../../lib/supabase';
 import { useBasePath } from '../../lib/useBasePath';
 
@@ -164,6 +164,10 @@ export default function QuoteView() {
           <Link to={`${basePath}/quotes`}
             className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 text-sm rounded-xl transition-all">
             <List size={15} />回到列表
+          </Link>
+          <Link to={`${basePath}/quotes/${quoteId}/plan`}
+            className="flex items-center gap-2 px-4 py-2 bg-purple-50 border border-purple-200 hover:bg-purple-100 text-purple-700 text-sm rounded-xl transition-all">
+            <FileSignature size={15} />搬家計劃書
           </Link>
           {quote.email && (
             <button onClick={handleSendEmail} disabled={sending}

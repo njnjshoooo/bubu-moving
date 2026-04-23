@@ -26,6 +26,7 @@ export const T = {
   caseStudies:          'bubu_case_studies',
   settlementSheets:     'bubu_settlement_sheets',
   settlementItems:      'bubu_settlement_items',
+  movingPlans:          'bubu_moving_plans',
 } as const;
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -269,4 +270,131 @@ export interface SettlementItem {
   estimated_qty: number;
   actual_qty: number;
   sort_order: number;
+}
+
+// ─── 搬家計劃書（一條龍搬家新手工具書）──────────────────────────────────────
+export interface MovingPlan {
+  id: string;
+  quote_id: string;
+  consultant_id: string | null;
+  estimation: MovingPlanEstimation;
+  execution: MovingPlanExecution;
+  review: MovingPlanReview;
+  status: 'draft' | 'confirmed' | 'completed';
+  created_at: string;
+  updated_at: string;
+}
+
+// Part 1: 估價表
+export interface MovingPlanEstimation {
+  // 客戶資料
+  expected_moving_date?: string;
+  arrival_time?: string;
+  // 舊家
+  old_elevator?: 'none' | 'has' | 'freight' | '';
+  old_loading_area?: string;
+  old_over_30m?: boolean;
+  // 新家
+  new_elevator?: 'none' | 'has' | 'freight' | '';
+  new_loading_area?: string;
+  new_over_30m?: boolean;
+  // 家中成員
+  family_adults?: number;
+  family_kids?: number;
+  family_pets?: number;
+  family_other?: string;
+  move_in_same_day?: boolean;
+  // 大型家具（每項：名稱 + 數量 + 是否需拆裝）
+  large_furniture?: { name: string; qty: number; need_disassembly: boolean }[];
+  // 大型家電
+  large_appliances?: { name: string; qty: number; note?: string }[];
+  // 電梯/地板防護
+  elevator_protection?: boolean;
+  floor_protection?: boolean;
+  // 衣服鞋子打包方式
+  clothes_hanging?: boolean;       // 掛衣箱
+  clothes_folded?: boolean;        // 折疊入紙箱
+  clothes_vacuum?: boolean;        // 真空壓縮
+  clothes_other?: string;
+  // 寄送包材
+  supplies_dates?: string[];       // 可收件日期
+  mgmt_pickup?: boolean;
+  mgmt_pickup_phone?: string;
+  delivery_time_slot?: 'am' | 'pm' | 'anytime' | '';
+  // 耗材估算
+  supplies: {
+    small_box?: number;            // 小紙箱 $50
+    large_box?: number;            // 大紙箱 $70
+    tape?: number;                 // 膠帶 $25
+    bubble_wrap?: number;          // 氣泡紙 $400/半捲
+    brown_paper?: number;          // 土報紙 $400/半包
+  };
+  // 服務目標
+  service_packing?: boolean;       // 物品打包裝箱
+  service_moving?: boolean;        // 搬家
+  service_unpacking?: boolean;     // 物品拆箱上架
+  service_screening?: boolean;     // 打包前篩選
+  // 現場人員
+  onsite_staff?: string[];         // 客戶本人 / 家人 / 裝潢施工人員 / 其他
+  onsite_staff_other?: string;
+  // 空間狀態
+  work_space?: string;             // 全室 / 不處理的空間或物品
+  size_change?: 'same' | 'small_to_big' | 'big_to_small' | '';
+  // 物品異動
+  item_movements?: { from: string; name: string; to: string }[];
+  // 舊家現況
+  old_area_ping?: number;
+  old_cabinet_outside?: string;    // 堆積難走動 / 部分散落 / 地面整齊
+  old_cabinet_inside?: string;     // 蔓延至外 / 幾乎塞滿 / 尚有50%空間
+  old_fragile_count?: number;
+  old_photos_url?: string;
+  // 新家現況
+  new_area_ping?: number;
+  new_storage_level?: 'much' | 'little' | '';
+  new_item_status?: {
+    empty?: boolean;               // 全空
+    already_arranged?: boolean;    // 已有擺設
+    already_packed?: boolean;      // 物品已打包
+    other?: string;
+  };
+  new_photos_url?: string;
+  // 預估人力
+  estimated_hours?: number;
+  estimated_people?: number;
+  estimated_days?: number;
+  need_screening?: boolean;
+  screening_hours?: number;
+  screening_people?: number;
+  screening_days?: number;
+  // 額外備註
+  notes?: string;
+}
+
+// Part 2: 執行規劃書（主整聊師填）
+export interface MovingPlanExecution {
+  main_consultant?: string;
+  staff_assignments?: {
+    role: string;                  // 封箱手 / 舊家收尾人 / 新家對接人 / 其他
+    name: string;
+    note?: string;
+  }[];
+  tour_start?: string;
+  tour_end?: string;
+  packing_start?: string;
+  packing_end?: string;
+  labeling_method?: string;        // 貼標作法
+  break_start?: string;
+  break_end?: string;
+  transportation?: string;
+  loading_start?: string;
+  loading_end?: string;
+  cleanup_note?: string;
+  total_fee_note?: string;
+}
+
+// Part 3: 實際執行回顧
+export interface MovingPlanReview {
+  actual_summary?: string;
+  gap_analysis?: string;
+  mood_journey?: string;
 }

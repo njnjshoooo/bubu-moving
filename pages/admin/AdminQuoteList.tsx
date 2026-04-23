@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Plus, Eye, Edit, Search, ClipboardList, Trash2 } from 'lucide-react';
+import { Plus, Eye, Edit, Search, ClipboardList, Trash2, FileSignature } from 'lucide-react';
 import { supabase, Quote, Consultant, T } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import { useBasePath } from '../../lib/useBasePath';
@@ -152,6 +152,10 @@ export default function AdminQuoteList() {
                         <Link to={`${basePath}/settlement/${q.id}`}
                           className="inline-flex items-center gap-1 text-xs bg-green-50 text-green-700 hover:bg-green-100 px-2.5 py-1.5 rounded-lg transition-colors">
                           <ClipboardList size={13} />結算表
+                        </Link>
+                        <Link to={`${basePath}/quotes/${q.id}/plan`}
+                          className="inline-flex items-center gap-1 text-xs bg-purple-50 text-purple-700 hover:bg-purple-100 px-2.5 py-1.5 rounded-lg transition-colors">
+                          <FileSignature size={13} />計劃書
                         </Link>
                         {isAdmin && (
                           <button onClick={() => deleteQuote(q.id, q.quote_number, q.customer_name)}
