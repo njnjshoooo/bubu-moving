@@ -351,33 +351,95 @@ export default function MovingPlanView() {
           </div>
         )}
 
-        {/* 10. 執行規劃 */}
-        {(exec.main_consultant || exec.packing_start || exec.transportation) && (
+        {/* 10. 執行規劃書 */}
+        {(exec.main_consultant || exec.packing_start || exec.tour_start ||
+          exec.loading_start || (exec.loading_items && exec.loading_items.length > 0) ||
+          exec.loading_items_other) && (
           <>
             <Header title="執行規劃書" num="⑩" />
             <Row label="主整聊師" value={exec.main_consultant} />
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-x-6 gap-y-1 mt-2">
-              <Row label="導覽" value={exec.tour_start && exec.tour_end ? `${exec.tour_start}–${exec.tour_end}` : undefined} />
-              <Row label="打包" value={exec.packing_start && exec.packing_end ? `${exec.packing_start}–${exec.packing_end}` : undefined} />
-              <Row label="上架" value={exec.loading_start && exec.loading_end ? `${exec.loading_start}–${exec.loading_end}` : undefined} />
+
+            {/* 導覽 */}
+            <div className="mt-4 border-l-2 border-blue-200 pl-3">
+              <p className="font-semibold text-gray-800 mb-1">🧭 導覽 Time
+                {exec.tour_start && exec.tour_end && (
+                  <span className="ml-2 text-sm text-gray-500 font-normal">{exec.tour_start}–{exec.tour_end}</span>
+                )}
+              </p>
+              <ul className="text-xs text-gray-600 list-disc list-inside space-y-0.5">
+                <li>由主整聊師帶領團隊與客戶實際走訪舊家各空間</li>
+                <li>確認物品位置、搬運動線、易碎品與不搬物品標記</li>
+                <li>說明新家對應空間的安排規劃</li>
+              </ul>
             </div>
-            {exec.labeling_method && (
-              <div className="mt-2">
-                <Row label="貼標作法" value={exec.labeling_method} />
+
+            {/* 打包 */}
+            <div className="mt-3 border-l-2 border-blue-200 pl-3">
+              <p className="font-semibold text-gray-800 mb-1">📦 打包 Time
+                {exec.packing_start && exec.packing_end && (
+                  <span className="ml-2 text-sm text-gray-500 font-normal">{exec.packing_start}–{exec.packing_end}</span>
+                )}
+              </p>
+              <ul className="text-xs text-gray-600 list-disc list-inside space-y-0.5">
+                <li>依空間分工，每人負責一個區域</li>
+                <li>貼標作法：編號 + 目的空間 + 物品屬性（易碎 / 重物 / 拆裝）</li>
+                <li>衣服先分類：上掛衣箱 / 折疊入箱</li>
+                <li>易碎品獨立包裝並明顯標記「易碎」</li>
+              </ul>
+            </div>
+
+            {/* 打包結束 */}
+            <div className="mt-3 border-l-2 border-blue-200 pl-3">
+              <p className="font-semibold text-gray-800 mb-1">✅ 打包結束</p>
+              <ul className="text-xs text-gray-600 list-disc list-inside space-y-0.5">
+                <li>清點所有紙箱總數，與編號對照</li>
+                <li>最後巡視各空間，確認無漏裝物品</li>
+                <li>集中紙箱至搬運動線起點，保留通道</li>
+                <li>整理打包現場，預留休息空間</li>
+              </ul>
+            </div>
+
+            {/* 休息 */}
+            <div className="mt-3 border-l-2 border-blue-200 pl-3">
+              <p className="font-semibold text-gray-800 mb-1">☕ 休息 Time
+                {exec.break_start && exec.break_end && (
+                  <span className="ml-2 text-sm text-gray-500 font-normal">{exec.break_start}–{exec.break_end}</span>
+                )}
+              </p>
+              <ul className="text-xs text-gray-600 list-disc list-inside space-y-0.5">
+                <li>安排 30~60 分鐘休息用餐</li>
+                <li>主整聊師利用休息時間與客戶確認新家動線</li>
+                <li>確認搬家公司準時抵達並溝通搬運順序</li>
+              </ul>
+            </div>
+
+            {/* 上架（只顯示勾選的項目）*/}
+            {((exec.loading_items && exec.loading_items.length > 0) || exec.loading_items_other || exec.loading_start) && (
+              <div className="mt-3 border-l-2 border-brand-300 pl-3">
+                <p className="font-semibold text-gray-800 mb-1">🏠 上架 Time
+                  {exec.loading_start && exec.loading_end && (
+                    <span className="ml-2 text-sm text-gray-500 font-normal">{exec.loading_start}–{exec.loading_end}</span>
+                  )}
+                </p>
+                {exec.loading_items && exec.loading_items.length > 0 && (
+                  <ul className="text-sm text-gray-700 list-disc list-inside space-y-0.5">
+                    {exec.loading_items.map((item, i) => <li key={i}>{item}</li>)}
+                  </ul>
+                )}
+                {exec.loading_items_other && (
+                  <p className="text-sm text-gray-700 mt-1">• {exec.loading_items_other}</p>
+                )}
               </div>
             )}
-            {exec.transportation && <Row label="交通方式" value={exec.transportation} />}
-            {exec.cleanup_note && <Row label="收尾說明" value={exec.cleanup_note} />}
           </>
         )}
 
         {/* 11. 實際執行回顧 */}
-        {(review.actual_summary || review.gap_analysis || review.mood_journey) && (
+        {(review.actual_summary || review.gap_analysis) && (
           <>
             <Header title="實際執行回顧" num="⑪" />
             {review.actual_summary && <Row label="實際安排" value={<span className="whitespace-pre-wrap">{review.actual_summary}</span>} />}
             {review.gap_analysis && <Row label="落差分析" value={<span className="whitespace-pre-wrap">{review.gap_analysis}</span>} />}
-            {review.mood_journey && <Row label="心情旅程" value={<span className="whitespace-pre-wrap">{review.mood_journey}</span>} />}
           </>
         )}
 

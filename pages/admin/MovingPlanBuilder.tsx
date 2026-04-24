@@ -570,23 +570,101 @@ export default function MovingPlanBuilder() {
         <Field label="主整聊師">
           <input value={exec.main_consultant ?? ''} onChange={e => setExec({ ...exec, main_consultant: e.target.value })} className={inputCls} />
         </Field>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          <Field label="導覽時間 開始"><input type="time" value={exec.tour_start ?? ''} onChange={e => setExec({ ...exec, tour_start: e.target.value })} className={inputCls} /></Field>
-          <Field label="導覽時間 結束"><input type="time" value={exec.tour_end ?? ''} onChange={e => setExec({ ...exec, tour_end: e.target.value })} className={inputCls} /></Field>
-          <Field label="打包時間 開始"><input type="time" value={exec.packing_start ?? ''} onChange={e => setExec({ ...exec, packing_start: e.target.value })} className={inputCls} /></Field>
-          <Field label="打包時間 結束"><input type="time" value={exec.packing_end ?? ''} onChange={e => setExec({ ...exec, packing_end: e.target.value })} className={inputCls} /></Field>
-          <Field label="上架時間 開始"><input type="time" value={exec.loading_start ?? ''} onChange={e => setExec({ ...exec, loading_start: e.target.value })} className={inputCls} /></Field>
-          <Field label="上架時間 結束"><input type="time" value={exec.loading_end ?? ''} onChange={e => setExec({ ...exec, loading_end: e.target.value })} className={inputCls} /></Field>
+
+        {/* 導覽 */}
+        <div className="border-t border-gray-100 pt-3">
+          <p className="text-sm font-semibold text-gray-700 mb-1">🧭 導覽 Time</p>
+          <div className="bg-blue-50 border border-blue-100 rounded-lg p-3 text-xs text-blue-900 mb-2">
+            <p className="font-medium mb-1">📌 提醒（固定內容，列印時會帶出）</p>
+            <ul className="list-disc list-inside space-y-0.5 text-blue-800">
+              <li>由主整聊師帶領團隊與客戶實際走訪舊家各空間</li>
+              <li>確認物品位置、搬運動線、易碎品與不搬物品標記</li>
+              <li>說明新家對應空間的安排規劃</li>
+            </ul>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="開始時間"><input type="time" value={exec.tour_start ?? ''} onChange={e => setExec({ ...exec, tour_start: e.target.value })} className={inputCls} /></Field>
+            <Field label="結束時間"><input type="time" value={exec.tour_end ?? ''} onChange={e => setExec({ ...exec, tour_end: e.target.value })} className={inputCls} /></Field>
+          </div>
         </div>
-        <Field label="貼標作法（編號 / 顏色 / 英文字）">
-          <textarea value={exec.labeling_method ?? ''} rows={2} onChange={e => setExec({ ...exec, labeling_method: e.target.value })} className={`${inputCls} resize-none`} />
-        </Field>
-        <Field label="交通方式">
-          <input value={exec.transportation ?? ''} onChange={e => setExec({ ...exec, transportation: e.target.value })} className={inputCls} />
-        </Field>
-        <Field label="收尾說明">
-          <textarea value={exec.cleanup_note ?? ''} rows={2} onChange={e => setExec({ ...exec, cleanup_note: e.target.value })} className={`${inputCls} resize-none`} />
-        </Field>
+
+        {/* 打包 */}
+        <div className="border-t border-gray-100 pt-3">
+          <p className="text-sm font-semibold text-gray-700 mb-1">📦 打包 Time</p>
+          <div className="bg-blue-50 border border-blue-100 rounded-lg p-3 text-xs text-blue-900 mb-2">
+            <p className="font-medium mb-1">📌 提醒（固定內容，列印時會帶出）</p>
+            <ul className="list-disc list-inside space-y-0.5 text-blue-800">
+              <li>依空間分工，每人負責一個區域</li>
+              <li>貼標作法：編號 + 目的空間 + 物品屬性（易碎 / 重物 / 拆裝）</li>
+              <li>衣服先分類：上掛衣箱 / 折疊入箱</li>
+              <li>易碎品獨立包裝並明顯標記「易碎」</li>
+            </ul>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="開始時間"><input type="time" value={exec.packing_start ?? ''} onChange={e => setExec({ ...exec, packing_start: e.target.value })} className={inputCls} /></Field>
+            <Field label="結束時間"><input type="time" value={exec.packing_end ?? ''} onChange={e => setExec({ ...exec, packing_end: e.target.value })} className={inputCls} /></Field>
+          </div>
+        </div>
+
+        {/* 打包結束 */}
+        <div className="border-t border-gray-100 pt-3">
+          <p className="text-sm font-semibold text-gray-700 mb-1">✅ 打包結束</p>
+          <div className="bg-blue-50 border border-blue-100 rounded-lg p-3 text-xs text-blue-900">
+            <p className="font-medium mb-1">📌 提醒（固定內容，列印時會帶出）</p>
+            <ul className="list-disc list-inside space-y-0.5 text-blue-800">
+              <li>清點所有紙箱總數，與編號對照</li>
+              <li>最後巡視各空間，確認無漏裝物品</li>
+              <li>集中紙箱至搬運動線起點，保留通道</li>
+              <li>整理打包現場，預留休息空間</li>
+            </ul>
+          </div>
+        </div>
+
+        {/* 休息 */}
+        <div className="border-t border-gray-100 pt-3">
+          <p className="text-sm font-semibold text-gray-700 mb-1">☕ 休息 Time</p>
+          <div className="bg-blue-50 border border-blue-100 rounded-lg p-3 text-xs text-blue-900 mb-2">
+            <p className="font-medium mb-1">📌 提醒（固定內容，列印時會帶出）</p>
+            <ul className="list-disc list-inside space-y-0.5 text-blue-800">
+              <li>安排 30~60 分鐘休息用餐</li>
+              <li>主整聊師利用休息時間與客戶確認新家動線</li>
+              <li>確認搬家公司準時抵達並溝通搬運順序</li>
+            </ul>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="開始時間"><input type="time" value={exec.break_start ?? ''} onChange={e => setExec({ ...exec, break_start: e.target.value })} className={inputCls} /></Field>
+            <Field label="結束時間"><input type="time" value={exec.break_end ?? ''} onChange={e => setExec({ ...exec, break_end: e.target.value })} className={inputCls} /></Field>
+          </div>
+        </div>
+
+        {/* 上架 — 可勾選項目 */}
+        <div className="border-t border-gray-100 pt-3">
+          <p className="text-sm font-semibold text-gray-700 mb-1">🏠 上架 Time</p>
+          <p className="text-xs text-gray-500 mb-2">僅勾選的項目會出現在計劃書列印版</p>
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-2 mb-2">
+            {['床架組裝', '床墊定位', '衣櫃懸掛衣物', '沙發就定位', '餐桌椅就定位',
+              '廚房用品歸位', '衛浴用品歸位', '陽台置物', '書房擺設'].map(item => {
+              const checked = (exec.loading_items ?? []).includes(item);
+              return (
+                <CB key={item} checked={checked} label={item}
+                  onChange={v => setExec({
+                    ...exec,
+                    loading_items: v
+                      ? [...(exec.loading_items ?? []), item]
+                      : (exec.loading_items ?? []).filter(i => i !== item),
+                  })} />
+              );
+            })}
+          </div>
+          <Field label="其他項目（自填）">
+            <input value={exec.loading_items_other ?? ''} onChange={e => setExec({ ...exec, loading_items_other: e.target.value })}
+              placeholder="例如：鋼琴定位、魚缸組裝..." className={inputCls} />
+          </Field>
+          <div className="grid grid-cols-2 gap-3 mt-2">
+            <Field label="開始時間"><input type="time" value={exec.loading_start ?? ''} onChange={e => setExec({ ...exec, loading_start: e.target.value })} className={inputCls} /></Field>
+            <Field label="結束時間"><input type="time" value={exec.loading_end ?? ''} onChange={e => setExec({ ...exec, loading_end: e.target.value })} className={inputCls} /></Field>
+          </div>
+        </div>
       </Section>
 
       {/* Part 11: 實際執行回顧 */}
@@ -596,9 +674,6 @@ export default function MovingPlanBuilder() {
         </Field>
         <Field label="執行分配 vs 規劃的落差原因">
           <textarea value={review.gap_analysis ?? ''} rows={3} onChange={e => setReview({ ...review, gap_analysis: e.target.value })} className={`${inputCls} resize-none`} />
-        </Field>
-        <Field label="整聊師心情旅程">
-          <textarea value={review.mood_journey ?? ''} rows={3} onChange={e => setReview({ ...review, mood_journey: e.target.value })} className={`${inputCls} resize-none`} />
         </Field>
       </Section>
 

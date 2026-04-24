@@ -371,6 +371,7 @@ export interface MovingPlanEstimation {
 }
 
 // Part 2: 執行規劃書（主整聊師填）
+// 註：導覽 / 打包 / 打包結束 / 休息 的提醒文字為固定內容，不存於 DB
 export interface MovingPlanExecution {
   main_consultant?: string;
   staff_assignments?: {
@@ -378,23 +379,22 @@ export interface MovingPlanExecution {
     name: string;
     note?: string;
   }[];
+  // 時段安排（可編輯實際時間）
   tour_start?: string;
   tour_end?: string;
   packing_start?: string;
   packing_end?: string;
-  labeling_method?: string;        // 貼標作法
   break_start?: string;
   break_end?: string;
-  transportation?: string;
   loading_start?: string;
   loading_end?: string;
-  cleanup_note?: string;
-  total_fee_note?: string;
+  // 上架 Time — 勾選的項目才會顯示在計劃書
+  loading_items?: string[];
+  loading_items_other?: string;
 }
 
 // Part 3: 實際執行回顧
 export interface MovingPlanReview {
   actual_summary?: string;
   gap_analysis?: string;
-  mood_journey?: string;
 }
