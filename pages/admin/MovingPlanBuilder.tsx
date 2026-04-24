@@ -71,9 +71,11 @@ export default function MovingPlanBuilder() {
   useEffect(() => {
     if (!quoteId) return;
     (async () => {
-      // 載入報價單資訊（帶客戶資料）
+      // 載入報價單資訊（帶客戶資料 + 關聯的 booking + staff schedule）
       const { data: quote } = await supabase.from(T.quotes)
-        .select('customer_name, phone, address_from, address_to, consultant_id')
+        .select(`customer_name, phone, address_from, address_to, consultant_id, booking_id,
+          address_from_type, address_from_parking, address_from_basement,
+          address_to_type, address_to_parking, address_to_basement`)
         .eq('id', quoteId).maybeSingle();
       if (quote) {
         setQuoteCustomer({
@@ -84,14 +86,43 @@ export default function MovingPlanBuilder() {
         });
       }
 
+      // 載入 booking（若有）取得 moving_date
+      let bookingMovingDate: string | null = null;
+      if (quote?.booking_id) {
+        const { data: booking } = await supabase.from(T.bookings)
+          .select('moving_date').eq('id', quote.booking_id).maybeSingle();
+        bookingMovingDate = booking?.moving_date ?? null;
+      }
+
+      // 載入計時人員第一筆，取得進場時間
+      const { data: staffRows } = await supabase.from(T.staffSchedule)
+        .select('work_date, start_time').eq('quote_id', quoteId)
+        .order('sort_order').limit(1);
+      const firstStaff = staffRows?.[0];
+
       // 載入或建立計劃書
       const { data: existing } = await supabase.from(T.movingPlans)
         .select('*').eq('quote_id', quoteId).maybeSingle();
       if (existing) {
-        setPlan(existing as MovingPlan);
-        setEst({ ...((existing as MovingPlan).estimation ?? {}), supplies: (existing as MovingPlan).estimation?.supplies ?? {} });
-        setExec((existing as MovingPlan).execution ?? {});
-        setReview((existing as MovingPlan).review ?? {});
+        const p = existing as MovingPlan;
+        setPlan(p);
+        // 既有計劃書：沿用使用者已填資料；若空欄再從報價單帶入
+        const e = p.estimation ?? {};
+        setEst({
+          ...e,
+          supplies: e.supplies ?? {},
+          expected_moving_date: e.expected_moving_date || bookingMovingDate || firstStaff?.work_date || '',
+          arrival_time: e.arrival_time || firstStaff?.start_time?.slice(0, 5) || '',
+        });
+        setExec(p.execution ?? {});
+        setReview(p.review ?? {});
+      } else {
+        // 新計劃書：從報價單預填
+        setEst({
+          supplies: {},
+          expected_moving_date: bookingMovingDate || firstStaff?.work_date || '',
+          arrival_time: firstStaff?.start_time?.slice(0, 5) || '',
+        });
       }
       setLoading(false);
     })();

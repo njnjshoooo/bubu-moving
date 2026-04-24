@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
 import { Plus, Trash2, ChevronDown, ChevronUp, Save, Eye, ArrowLeft, Users, CalendarDays, UserCircle, CheckSquare, Square, AlignLeft, MapPin } from 'lucide-react';
-import { supabase, NoteTemplate, T } from '../../lib/supabase';
+import { supabase, NoteTemplate, T, MovingPlanEstimation } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import { TAIWAN_DISTRICTS, CITIES } from '../../lib/taiwanDistricts';
 import { useBasePath } from '../../lib/useBasePath';
@@ -210,8 +210,11 @@ export default function QuoteBuilder() {
   const [remarkNotes, setRemarkNotes] = useState<string[]>([]);
   const [expandedCats, setExpandedCats] = useState<Record<string, boolean>>({
     '搬家車趟費': true, _staff: true, _schedule: true, '計時人員': true,
+    _survey: false,
   });
   const [saving, setSaving] = useState(false);
+  // 搬家計劃書評估問卷（於報價時詢問，會寫入 bubu_moving_plans）
+  const [survey, setSurvey] = useState<MovingPlanEstimation>({ supplies: {} });
   const [quoteNumber, setQuoteNumber] = useState('');
   const [existingQuoteId, setExistingQuoteId] = useState<string | null>(null);
   const [quoteStatus, setQuoteStatus] = useState<string>('草稿');
@@ -354,6 +357,13 @@ export default function QuoteBuilder() {
             label: s.item_name ?? '整聊師',
           })));
         }
+      }
+
+      // 載入搬家計劃書的評估問卷（如果已有）
+      const { data: planData } = await supabase.from(T.movingPlans)
+        .select('estimation').eq('quote_id', quoteId).maybeSingle();
+      if (planData?.estimation) {
+        setSurvey({ ...(planData.estimation as MovingPlanEstimation), supplies: (planData.estimation as MovingPlanEstimation).supplies ?? {} });
       }
     };
     load();
@@ -535,6 +545,29 @@ export default function QuoteBuilder() {
         );
         if (e) throw e;
       }
+
+      // 評估問卷 → upsert 搬家計劃書 (如果有填任何欄位)
+      const hasSurveyData = survey.expected_moving_date
+        || survey.arrival_time
+        || survey.old_elevator
+        || survey.new_elevator
+        || survey.family_adults
+        || survey.family_kids
+        || survey.family_pets;
+      if (qid && hasSurveyData) {
+        const { data: existingPlan } = await supabase.from(T.movingPlans)
+          .select('id, estimation').eq('quote_id', qid).maybeSingle();
+        if (existingPlan) {
+          // 只覆蓋調查相關欄位，保留使用者在搬家計劃書填的其他欄位
+          const merged = { ...((existingPlan.estimation as MovingPlanEstimation) ?? {}), ...survey };
+          await supabase.from(T.movingPlans).update({ estimation: merged }).eq('id', existingPlan.id);
+        } else {
+          await supabase.from(T.movingPlans).insert({
+            quote_id: qid, estimation: survey, execution: {}, review: {}, status: 'draft',
+          });
+        }
+      }
+
       showToast('success');
       if (redirectToView && qid) navigate(`${basePath}/quotes/${qid}/view`);
     } catch (err: any) {
@@ -1002,6 +1035,13 @@ export default function QuoteBuilder() {
             {expandedCats._schedule && (
               <div className="px-5 pb-5">
                 <p className="text-xs text-gray-400 mb-3">列印報價單時將顯示排程表與 Gantt 圖。時間未重疊的項目在同一列顯示。</p>
+                {/* 作業項目下拉選項（可自填，datalist 共用）*/}
+                <datalist id="schedule-label-options">
+                  <option value="舊家打包" />
+                  <option value="包材送達" />
+                  <option value="搬家公司抵達" />
+                  <option value="新家上架" />
+                </datalist>
                 {scheduleItems.length > 0 && (
                   <div className="space-y-2 mb-3">
                     <div className="grid grid-cols-12 text-xs text-gray-400 font-medium gap-2 px-2">
@@ -1027,7 +1067,8 @@ export default function QuoteBuilder() {
                           onChange={v => updateScheduleItem(idx, 'end_time', v)}
                           className="col-span-2" />
                         <input value={item.label} onChange={e => updateScheduleItem(idx, 'label', e.target.value)}
-                          placeholder="作業項目名稱"
+                          list="schedule-label-options"
+                          placeholder="作業項目（可下拉或自填）"
                           className="col-span-5 bg-white border border-gray-200 rounded-lg px-2 py-1 text-xs text-gray-500 focus:outline-none focus:ring-1 focus:ring-brand-400" />
                         <button onClick={() => removeScheduleItem(idx)} className="col-span-1 flex justify-center p-1 hover:text-red-500 transition-colors">
                           <Trash2 size={14} />
@@ -1040,6 +1081,138 @@ export default function QuoteBuilder() {
                   className="flex items-center gap-2 text-sm text-purple-600 hover:text-purple-700 border border-dashed border-purple-300 hover:border-purple-400 px-4 py-2 rounded-xl transition-all w-full justify-center">
                   <Plus size={15} />新增排程項目
                 </button>
+              </div>
+            )}
+          </div>
+
+          {/* ── 現場環境評估（會自動帶入搬家計劃書）── */}
+          <div className="bg-white rounded-2xl border border-gray-100">
+            <button onClick={() => setExpandedCats(p => ({ ...p, _survey: !p._survey }))}
+              className="w-full px-5 py-4 flex items-center justify-between hover:bg-gray-50 transition-colors">
+              <div className="flex items-center gap-3">
+                <h2 className="font-bold text-gray-800">🏠 現場環境評估</h2>
+                <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full">計劃書自動帶入</span>
+              </div>
+              {expandedCats._survey ? <ChevronUp size={18} className="text-gray-400" /> : <ChevronDown size={18} className="text-gray-400" />}
+            </button>
+            {expandedCats._survey && (
+              <div className="px-5 pb-5 space-y-4 border-t border-gray-50 pt-4">
+                <p className="text-xs text-gray-400">報價時先詢問客戶環境資訊，填入後會自動出現在搬家計劃書中，無須重複輸入。</p>
+
+                {/* 搬家日與進場時間 */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-xs font-medium text-gray-600 mb-1 block">預計搬家日</label>
+                    <input type="date" value={survey.expected_moving_date ?? ''}
+                      onChange={e => setSurvey({ ...survey, expected_moving_date: e.target.value })}
+                      className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400" />
+                  </div>
+                  <div>
+                    <label className="text-xs font-medium text-gray-600 mb-1 block">搬家公司進場時間</label>
+                    <input type="time" value={survey.arrival_time ?? ''}
+                      onChange={e => setSurvey({ ...survey, arrival_time: e.target.value })}
+                      className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400" />
+                  </div>
+                </div>
+
+                {/* 舊家 */}
+                <div className="border-t border-gray-100 pt-3">
+                  <p className="text-sm font-medium text-gray-700 mb-2">🏠 舊家</p>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <div>
+                      <label className="text-xs font-medium text-gray-600 mb-1 block">電梯</label>
+                      <select value={survey.old_elevator ?? ''} onChange={e => setSurvey({ ...survey, old_elevator: e.target.value as any })}
+                        className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400 bg-white">
+                        <option value="">—</option>
+                        <option value="none">無電梯</option>
+                        <option value="has">有電梯</option>
+                        <option value="freight">有貨梯</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-xs font-medium text-gray-600 mb-1 block">卸貨區</label>
+                      <input value={survey.old_loading_area ?? ''} placeholder="地下室 / 路邊臨停"
+                        onChange={e => setSurvey({ ...survey, old_loading_area: e.target.value })}
+                        className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400" />
+                    </div>
+                    <div className="flex items-end">
+                      <label className="flex items-center gap-2 text-sm text-gray-700 pb-2">
+                        <input type="checkbox" checked={!!survey.old_over_30m}
+                          onChange={e => setSurvey({ ...survey, old_over_30m: e.target.checked })}
+                          className="rounded text-brand-500" />
+                        超過 30M 步行費
+                      </label>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 新家 */}
+                <div className="border-t border-gray-100 pt-3">
+                  <p className="text-sm font-medium text-gray-700 mb-2">🏡 新家</p>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <div>
+                      <label className="text-xs font-medium text-gray-600 mb-1 block">電梯</label>
+                      <select value={survey.new_elevator ?? ''} onChange={e => setSurvey({ ...survey, new_elevator: e.target.value as any })}
+                        className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400 bg-white">
+                        <option value="">—</option>
+                        <option value="none">無電梯</option>
+                        <option value="has">有電梯</option>
+                        <option value="freight">有貨梯</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="text-xs font-medium text-gray-600 mb-1 block">卸貨區</label>
+                      <input value={survey.new_loading_area ?? ''} placeholder="地下室 / 路邊臨停"
+                        onChange={e => setSurvey({ ...survey, new_loading_area: e.target.value })}
+                        className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400" />
+                    </div>
+                    <div className="flex items-end">
+                      <label className="flex items-center gap-2 text-sm text-gray-700 pb-2">
+                        <input type="checkbox" checked={!!survey.new_over_30m}
+                          onChange={e => setSurvey({ ...survey, new_over_30m: e.target.checked })}
+                          className="rounded text-brand-500" />
+                        超過 30M 步行費
+                      </label>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 家中成員 */}
+                <div className="border-t border-gray-100 pt-3">
+                  <p className="text-sm font-medium text-gray-700 mb-2">👨‍👩‍👧 家中成員</p>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    <div>
+                      <label className="text-xs font-medium text-gray-600 mb-1 block">大人</label>
+                      <input type="number" value={survey.family_adults ?? 0}
+                        onChange={e => setSurvey({ ...survey, family_adults: +e.target.value })}
+                        className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400" />
+                    </div>
+                    <div>
+                      <label className="text-xs font-medium text-gray-600 mb-1 block">小孩</label>
+                      <input type="number" value={survey.family_kids ?? 0}
+                        onChange={e => setSurvey({ ...survey, family_kids: +e.target.value })}
+                        className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400" />
+                    </div>
+                    <div>
+                      <label className="text-xs font-medium text-gray-600 mb-1 block">寵物</label>
+                      <input type="number" value={survey.family_pets ?? 0}
+                        onChange={e => setSurvey({ ...survey, family_pets: +e.target.value })}
+                        className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400" />
+                    </div>
+                    <div className="flex items-end">
+                      <label className="flex items-center gap-2 text-sm text-gray-700 pb-2">
+                        <input type="checkbox" checked={!!survey.move_in_same_day}
+                          onChange={e => setSurvey({ ...survey, move_in_same_day: e.target.checked })}
+                          className="rounded text-brand-500" />
+                        當天入住新家
+                      </label>
+                    </div>
+                  </div>
+                </div>
+
+                <p className="text-xs text-gray-400 bg-purple-50 border border-purple-100 rounded-lg p-3">
+                  💡 更完整的評估（家具家電、物品異動、空間現況、照片）請至「搬家計劃書」頁面填寫。
+                </p>
               </div>
             )}
           </div>
