@@ -177,46 +177,46 @@ function SheetContent({
         <h2 className="text-lg font-bold tracking-wide">步步搬家 費用結算統計表</h2>
       </div>
 
-      {/* Header grid */}
-      <div className="grid grid-cols-3 gap-x-4 gap-y-2 mb-4 border border-gray-300 rounded p-3 print:rounded-none">
-        <div className="flex items-center gap-1">
-          <span className="whitespace-nowrap text-gray-500">案名：</span>
+      {/* Header grid — 手機版單欄堆疊，桌面版三欄 */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-x-4 gap-y-2 mb-4 border border-gray-300 rounded p-3 print:rounded-none print:grid-cols-3">
+        <div className="flex items-center gap-1 min-w-0">
+          <span className="whitespace-nowrap text-gray-500 flex-shrink-0">案名：</span>
           {editMode ? (
             <EditCell value={header.customer_name} onChange={(v) => onHeaderChange('customer_name', v)} wide />
           ) : (
-            <span className="font-medium">{header.customer_name}</span>
+            <span className="font-medium truncate">{header.customer_name}</span>
           )}
         </div>
-        <div className="flex items-center gap-1">
-          <span className="whitespace-nowrap text-gray-500">顧問：</span>
+        <div className="flex items-center gap-1 min-w-0">
+          <span className="whitespace-nowrap text-gray-500 flex-shrink-0">顧問：</span>
           {editMode ? (
             <EditCell value={header.consultant_name} onChange={(v) => onHeaderChange('consultant_name', v)} />
           ) : (
-            <span className="font-medium">{header.consultant_name}</span>
+            <span className="font-medium truncate">{header.consultant_name}</span>
           )}
         </div>
-        <div className="flex items-center gap-1">
-          <span className="whitespace-nowrap text-gray-500">搬遷時間：</span>
+        <div className="flex items-center gap-1 min-w-0">
+          <span className="whitespace-nowrap text-gray-500 flex-shrink-0">搬遷時間：</span>
           {editMode ? (
             <EditCell value={header.move_datetime} onChange={(v) => onHeaderChange('move_datetime', v)} placeholder="e.g. 2025/01/15 上午" />
           ) : (
-            <span className="font-medium">{header.move_datetime}</span>
+            <span className="font-medium truncate">{header.move_datetime}</span>
           )}
         </div>
-        <div className="col-span-3 flex items-center gap-1">
-          <span className="whitespace-nowrap text-gray-500">舊址：</span>
+        <div className="md:col-span-3 print:col-span-3 flex items-center gap-1 min-w-0">
+          <span className="whitespace-nowrap text-gray-500 flex-shrink-0">舊址：</span>
           {editMode ? (
             <EditCell value={header.address_old} onChange={(v) => onHeaderChange('address_old', v)} wide />
           ) : (
-            <span className="font-medium">{header.address_old}</span>
+            <span className="font-medium truncate">{header.address_old}</span>
           )}
         </div>
-        <div className="col-span-3 flex items-center gap-1">
-          <span className="whitespace-nowrap text-gray-500">新址：</span>
+        <div className="md:col-span-3 print:col-span-3 flex items-center gap-1 min-w-0">
+          <span className="whitespace-nowrap text-gray-500 flex-shrink-0">新址：</span>
           {editMode ? (
             <EditCell value={header.address_new} onChange={(v) => onHeaderChange('address_new', v)} wide />
           ) : (
-            <span className="font-medium">{header.address_new}</span>
+            <span className="font-medium truncate">{header.address_new}</span>
           )}
         </div>
       </div>
@@ -224,8 +224,8 @@ function SheetContent({
       {/* Stacked tables */}
       <div className="space-y-4">
         {/* 作業項目 */}
-        <div>
-          <table className="w-full border border-gray-300 text-xs print:text-xs">
+        <div className="overflow-x-auto print:overflow-visible -mx-2 sm:mx-0 px-2 sm:px-0">
+          <table className="w-full min-w-[520px] sm:min-w-0 border border-gray-300 text-xs print:text-xs">
             <thead className="bg-gray-100 print:bg-gray-100">
               <tr>
                 <th className="border border-gray-300 px-2 py-1.5 text-left w-full">作業項目</th>
@@ -305,8 +305,8 @@ function SheetContent({
         </div>
 
         {/* 耗材 */}
-        <div>
-          <table className="w-full border border-gray-300 text-xs print:text-xs">
+        <div className="overflow-x-auto print:overflow-visible -mx-2 sm:mx-0 px-2 sm:px-0">
+          <table className="w-full min-w-[520px] sm:min-w-0 border border-gray-300 text-xs print:text-xs">
             <thead className="bg-gray-100 print:bg-gray-100">
               <tr>
                 <th className="border border-gray-300 px-2 py-1.5 text-left w-full">耗材</th>
