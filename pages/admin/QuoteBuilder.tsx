@@ -580,21 +580,22 @@ export default function QuoteBuilder() {
   };
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-5 pb-24 lg:pb-5">
       <SaveToast status={saveStatus} />
 
       {/* ── Header ── */}
       <div className="flex items-center justify-between flex-wrap gap-3">
-        <div className="flex items-center gap-3">
-          <Link to={`${basePath}/quotes`} className="p-2 hover:bg-gray-100 rounded-xl transition-colors">
+        <div className="flex items-center gap-3 min-w-0">
+          <Link to={`${basePath}/quotes`} className="p-2 hover:bg-gray-100 rounded-xl transition-colors flex-shrink-0">
             <ArrowLeft size={18} className="text-gray-600" />
           </Link>
-          <div>
-            <h1 className="text-2xl font-bold text-gray-800">{existingQuoteId ? '編輯報價單' : '新增報價單'}</h1>
-            <p className="text-sm text-gray-400 font-mono mt-0.5">{quoteNumber}</p>
+          <div className="min-w-0">
+            <h1 className="text-lg lg:text-2xl font-bold text-gray-800 truncate">{existingQuoteId ? '編輯報價單' : '新增報價單'}</h1>
+            <p className="text-xs lg:text-sm text-gray-400 font-mono mt-0.5">{quoteNumber}</p>
           </div>
         </div>
-        <div className="flex items-center gap-2 flex-wrap">
+        {/* Desktop save buttons */}
+        <div className="hidden lg:flex items-center gap-2 flex-wrap">
           <button onClick={() => handleSave(false)} disabled={saving}
             className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 text-sm rounded-xl transition-all disabled:opacity-60">
             <Save size={15} />儲存
@@ -604,6 +605,18 @@ export default function QuoteBuilder() {
             <Eye size={15} />預覽 / 產出報價單
           </button>
         </div>
+      </div>
+
+      {/* Mobile sticky save bar */}
+      <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-4 py-3 flex gap-2 z-30 shadow-[0_-4px_8px_rgba(0,0,0,0.05)]">
+        <button onClick={() => handleSave(false)} disabled={saving}
+          className="flex-1 flex items-center justify-center gap-1.5 px-4 py-2.5 bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 text-sm rounded-xl transition-all disabled:opacity-60">
+          <Save size={15} />{saving ? '儲存中...' : '儲存'}
+        </button>
+        <button onClick={() => handleSave(true)} disabled={saving}
+          className="flex-1 flex items-center justify-center gap-1.5 px-4 py-2.5 bg-brand-500 hover:bg-brand-600 text-white text-sm rounded-xl transition-all disabled:opacity-60">
+          <Eye size={15} />預覽
+        </button>
       </div>
 
       {/* ── Consultant Bar ── */}
@@ -853,7 +866,8 @@ export default function QuoteBuilder() {
                         <p className="text-xs text-gray-400 mb-3">每筆計算：工時 × 人數 × 時薪（工時 = 結束 − 開始 − 休息）</p>
                         {staffItems.length > 0 && (
                           <div className="space-y-2 mb-3">
-                            <div className="grid text-xs text-gray-400 font-medium gap-2 px-2"
+                            {/* Desktop header */}
+                            <div className="hidden lg:grid text-xs text-gray-400 font-medium gap-2 px-2"
                               style={{ gridTemplateColumns: '80px 1fr 1fr 72px 1fr 52px 1fr 28px' }}>
                               <span>品項</span>
                               <span>日期</span>
@@ -873,9 +887,9 @@ export default function QuoteBuilder() {
                                   onDragStart={() => handleStaffDragStart(idx)}
                                   onDragOver={e => handleStaffDragOver(e, idx)}
                                   className="bg-gray-50 rounded-xl px-2 py-2 cursor-grab active:cursor-grabbing">
-                                  <div className="grid gap-2 items-center"
+                                  {/* Desktop layout */}
+                                  <div className="hidden lg:grid gap-2 items-center"
                                     style={{ gridTemplateColumns: '80px 1fr 1fr 72px 1fr 52px 1fr 28px' }}>
-                                    {/* 品項名稱 */}
                                     <select value={item.item_name}
                                       onChange={e => {
                                         const p = PRODUCT_CATALOG['計時人員'].find(p => p.name === e.target.value);
@@ -887,17 +901,11 @@ export default function QuoteBuilder() {
                                         <option key={p.name} value={p.name}>{p.name}</option>
                                       ))}
                                     </select>
-                                    {/* 日期 */}
                                     <input type="date" value={item.work_date}
                                       onChange={e => updateStaffItem(idx, 'work_date', e.target.value)}
                                       className="bg-white border border-gray-200 rounded-lg px-1 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-brand-400" />
-                                    {/* 開始時間 */}
-                                    <TimeInput value={item.start_time}
-                                      onChange={v => updateStaffItem(idx, 'start_time', v)} />
-                                    {/* 結束時間 */}
-                                    <TimeInput value={item.end_time}
-                                      onChange={v => updateStaffItem(idx, 'end_time', v)} />
-                                    {/* 休息時間 */}
+                                    <TimeInput value={item.start_time} onChange={v => updateStaffItem(idx, 'start_time', v)} />
+                                    <TimeInput value={item.end_time} onChange={v => updateStaffItem(idx, 'end_time', v)} />
                                     <select value={item.break_hours}
                                       onChange={e => updateStaffItem(idx, 'break_hours', parseFloat(e.target.value))}
                                       className="bg-white border border-gray-200 rounded-lg px-1 py-1 text-xs text-center focus:outline-none focus:ring-1 focus:ring-brand-400">
@@ -905,10 +913,8 @@ export default function QuoteBuilder() {
                                         <option key={v} value={v}>{v === 0 ? '無' : `${v}h`}</option>
                                       ))}
                                     </select>
-                                    {/* 人數 */}
                                     <input {...numericInputProps(item.person_count, v => updateStaffItem(idx, 'person_count', v), 1)}
                                       className="bg-white border border-gray-200 rounded-lg px-1 py-1 text-xs text-center focus:outline-none focus:ring-1 focus:ring-brand-400" />
-                                    {/* 時薪 + 小計 */}
                                     <div className="flex items-center justify-end gap-0.5">
                                       <span className="text-xs text-gray-400">$</span>
                                       <input {...numericInputProps(item.unit_price, v => updateStaffItem(idx, 'unit_price', v))}
@@ -918,10 +924,69 @@ export default function QuoteBuilder() {
                                       <Trash2 size={14} />
                                     </button>
                                   </div>
+
+                                  {/* Mobile / Tablet layout */}
+                                  <div className="lg:hidden space-y-2">
+                                    <div className="flex items-center gap-2">
+                                      <select value={item.item_name}
+                                        onChange={e => {
+                                          const p = PRODUCT_CATALOG['計時人員'].find(p => p.name === e.target.value);
+                                          updateStaffItem(idx, 'item_name', e.target.value);
+                                          if (p) updateStaffItem(idx, 'unit_price', p.price);
+                                        }}
+                                        className="flex-1 bg-white border border-gray-200 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-1 focus:ring-brand-400">
+                                        {PRODUCT_CATALOG['計時人員'].map(p => (
+                                          <option key={p.name} value={p.name}>{p.name}</option>
+                                        ))}
+                                      </select>
+                                      <button onClick={() => removeStaffItem(idx)} className="p-1 hover:text-red-500 transition-colors flex-shrink-0">
+                                        <Trash2 size={16} />
+                                      </button>
+                                    </div>
+                                    <div className="grid grid-cols-3 gap-2">
+                                      <div>
+                                        <label className="text-[10px] text-gray-400 mb-0.5 block">日期</label>
+                                        <input type="date" value={item.work_date}
+                                          onChange={e => updateStaffItem(idx, 'work_date', e.target.value)}
+                                          className="w-full bg-white border border-gray-200 rounded-lg px-1.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-brand-400" />
+                                      </div>
+                                      <div>
+                                        <label className="text-[10px] text-gray-400 mb-0.5 block">開始</label>
+                                        <TimeInput value={item.start_time} onChange={v => updateStaffItem(idx, 'start_time', v)} className="w-full" />
+                                      </div>
+                                      <div>
+                                        <label className="text-[10px] text-gray-400 mb-0.5 block">結束</label>
+                                        <TimeInput value={item.end_time} onChange={v => updateStaffItem(idx, 'end_time', v)} className="w-full" />
+                                      </div>
+                                    </div>
+                                    <div className="grid grid-cols-3 gap-2">
+                                      <div>
+                                        <label className="text-[10px] text-gray-400 mb-0.5 block">休息(h)</label>
+                                        <select value={item.break_hours}
+                                          onChange={e => updateStaffItem(idx, 'break_hours', parseFloat(e.target.value))}
+                                          className="w-full bg-white border border-gray-200 rounded-lg px-1.5 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-brand-400">
+                                          {BREAK_OPTIONS.map(v => (
+                                            <option key={v} value={v}>{v === 0 ? '無' : `${v}h`}</option>
+                                          ))}
+                                        </select>
+                                      </div>
+                                      <div>
+                                        <label className="text-[10px] text-gray-400 mb-0.5 block">人數</label>
+                                        <input {...numericInputProps(item.person_count, v => updateStaffItem(idx, 'person_count', v), 1)}
+                                          className="w-full bg-white border border-gray-200 rounded-lg px-1.5 py-1.5 text-xs text-center focus:outline-none focus:ring-1 focus:ring-brand-400" />
+                                      </div>
+                                      <div>
+                                        <label className="text-[10px] text-gray-400 mb-0.5 block">時薪/人</label>
+                                        <input {...numericInputProps(item.unit_price, v => updateStaffItem(idx, 'unit_price', v))}
+                                          className="w-full text-right text-xs bg-white border border-gray-200 rounded-lg px-1.5 py-1.5 focus:outline-none focus:ring-1 focus:ring-brand-400" />
+                                      </div>
+                                    </div>
+                                  </div>
+
                                   {/* Sub-row: computed hours & subtotal */}
-                                  <div className="mt-1 flex items-center gap-3 px-2 text-xs text-gray-500">
+                                  <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 px-2 text-xs text-gray-500">
                                     <span>工時：{hours.toFixed(1)} h</span>
-                                    <span className="text-gray-300">（{item.start_time} – {item.end_time}{item.break_hours > 0 ? ` − ${item.break_hours}h 休息` : ''}）</span>
+                                    <span className="text-gray-300 hidden sm:inline">（{item.start_time} – {item.end_time}{item.break_hours > 0 ? ` − ${item.break_hours}h 休息` : ''}）</span>
                                     <span className="ml-auto font-semibold text-gray-800">小計 NT${sub.toLocaleString()}</span>
                                   </div>
                                 </div>
@@ -1044,7 +1109,8 @@ export default function QuoteBuilder() {
                 </datalist>
                 {scheduleItems.length > 0 && (
                   <div className="space-y-2 mb-3">
-                    <div className="grid grid-cols-12 text-xs text-gray-400 font-medium gap-2 px-2">
+                    {/* Desktop header */}
+                    <div className="hidden md:grid grid-cols-12 text-xs text-gray-400 font-medium gap-2 px-2">
                       <span className="col-span-2">日期</span>
                       <span className="col-span-2">開始</span>
                       <span className="col-span-2">結束</span>
@@ -1056,23 +1122,45 @@ export default function QuoteBuilder() {
                         draggable
                         onDragStart={() => handleSchedDragStart(idx)}
                         onDragOver={e => handleSchedDragOver(e, idx)}
-                        className="grid grid-cols-12 gap-2 items-center bg-gray-50 rounded-xl px-2 py-2 cursor-grab active:cursor-grabbing">
-                        <input type="date" value={item.work_date}
-                          onChange={e => updateScheduleItem(idx, 'work_date', e.target.value)}
-                          className="col-span-2 bg-white border border-gray-200 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-brand-400" />
-                        <TimeInput value={item.start_time}
-                          onChange={v => updateScheduleItem(idx, 'start_time', v)}
-                          className="col-span-2" />
-                        <TimeInput value={item.end_time}
-                          onChange={v => updateScheduleItem(idx, 'end_time', v)}
-                          className="col-span-2" />
-                        <input value={item.label} onChange={e => updateScheduleItem(idx, 'label', e.target.value)}
-                          list="schedule-label-options"
-                          placeholder="作業項目（可下拉或自填）"
-                          className="col-span-5 bg-white border border-gray-200 rounded-lg px-2 py-1 text-xs text-gray-500 focus:outline-none focus:ring-1 focus:ring-brand-400" />
-                        <button onClick={() => removeScheduleItem(idx)} className="col-span-1 flex justify-center p-1 hover:text-red-500 transition-colors">
-                          <Trash2 size={14} />
-                        </button>
+                        className="bg-gray-50 rounded-xl px-2 py-2 cursor-grab active:cursor-grabbing">
+                        {/* Desktop row */}
+                        <div className="hidden md:grid grid-cols-12 gap-2 items-center">
+                          <input type="date" value={item.work_date}
+                            onChange={e => updateScheduleItem(idx, 'work_date', e.target.value)}
+                            className="col-span-2 bg-white border border-gray-200 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-brand-400" />
+                          <TimeInput value={item.start_time}
+                            onChange={v => updateScheduleItem(idx, 'start_time', v)}
+                            className="col-span-2" />
+                          <TimeInput value={item.end_time}
+                            onChange={v => updateScheduleItem(idx, 'end_time', v)}
+                            className="col-span-2" />
+                          <input value={item.label} onChange={e => updateScheduleItem(idx, 'label', e.target.value)}
+                            list="schedule-label-options"
+                            placeholder="作業項目（可下拉或自填）"
+                            className="col-span-5 bg-white border border-gray-200 rounded-lg px-2 py-1 text-xs text-gray-500 focus:outline-none focus:ring-1 focus:ring-brand-400" />
+                          <button onClick={() => removeScheduleItem(idx)} className="col-span-1 flex justify-center p-1 hover:text-red-500 transition-colors">
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                        {/* Mobile stacked row */}
+                        <div className="md:hidden space-y-2">
+                          <div className="flex items-center gap-2">
+                            <input value={item.label} onChange={e => updateScheduleItem(idx, 'label', e.target.value)}
+                              list="schedule-label-options"
+                              placeholder="作業項目"
+                              className="flex-1 bg-white border border-gray-200 rounded-lg px-2 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-brand-400" />
+                            <button onClick={() => removeScheduleItem(idx)} className="p-1 hover:text-red-500 transition-colors flex-shrink-0">
+                              <Trash2 size={16} />
+                            </button>
+                          </div>
+                          <div className="grid grid-cols-3 gap-2">
+                            <input type="date" value={item.work_date}
+                              onChange={e => updateScheduleItem(idx, 'work_date', e.target.value)}
+                              className="bg-white border border-gray-200 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-brand-400" />
+                            <TimeInput value={item.start_time} onChange={v => updateScheduleItem(idx, 'start_time', v)} />
+                            <TimeInput value={item.end_time} onChange={v => updateScheduleItem(idx, 'end_time', v)} />
+                          </div>
+                        </div>
                       </div>
                     ))}
                   </div>
