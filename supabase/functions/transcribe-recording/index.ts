@@ -36,14 +36,20 @@ const EXTRACT_SYSTEM_PROMPT = `你是搬家公司的助理。請從顧問與客�
   "service_moving": true/false（是否需要搬運）,
   "service_unpacking": true/false（是否需要拆箱上架）,
   "service_screening": true/false（是否需要打包前篩選/斷捨離）,
-  "notes": "其他注意事項摘要（特殊物品、易碎品、客戶提及的限制條件...）"
+  "notes": ["注意事項1", "注意事項2", ...]（陣列，每項一句話，列出客戶提到的特殊狀況）
 }
 
 務必：
 - 沒提到的欄位用 null（不要編造）
 - 數字欄位用數字（不要字串）
-- 地址盡量完整（縣市+區+路名）
-- notes 用條列式或短句摘要關鍵資訊`;
+- 地址盡量完整（縣市+區+路名+樓層）
+- notes 是陣列，每項一句短話。包含：
+  • 特殊物品（鋼琴、保險箱、藝術品...）
+  • 易碎品提醒
+  • 樓層 / 電梯限制
+  • 寵物注意事項
+  • 兒童在場
+  • 客戶特別交代（時間、停車、進出限制...）`;
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });

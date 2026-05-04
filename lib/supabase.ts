@@ -444,5 +444,5 @@ export interface ExtractedQuoteData {
   service_moving?: boolean;
   service_unpacking?: boolean;
   service_screening?: boolean;
-  notes?: string;                // 其他注意事項（從逐字稿摘錄）
+  notes?: string | string[];     // 注意事項（陣列為主，舊資料可能是 string）
 }

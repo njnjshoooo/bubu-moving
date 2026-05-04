@@ -1,8 +1,15 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, FileText, Loader2, RefreshCw, AlertCircle, CheckCircle2, Wand2 } from 'lucide-react';
-import { supabase, QuoteRecording, ExtractedQuoteData, T } from '../../lib/supabase';
+import { ArrowLeft, FileText, Loader2, RefreshCw, AlertCircle, CheckCircle2, Wand2, Pencil, Save, X } from 'lucide-react';
+import { supabase, QuoteRecording, T } from '../../lib/supabase';
 import { useBasePath } from '../../lib/useBasePath';
+
+// notes 可能是 string 或 string[]，統一轉為陣列
+function notesToArray(notes: string | string[] | null | undefined): string[] {
+  if (!notes) return [];
+  if (Array.isArray(notes)) return notes.filter(Boolean);
+  return notes.split(/\r?\n/).map(s => s.replace(/^[-•*●・]\s*/, '').trim()).filter(Boolean);
+}
 
 export default function QuoteRecordingDetail() {
   const { recordingId } = useParams();
@@ -14,6 +21,10 @@ export default function QuoteRecordingDetail() {
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ type: 'ok' | 'err'; text: string } | null>(null);
 
+  // Title edit
+  const [editingTitle, setEditingTitle] = useState(false);
+  const [titleDraft, setTitleDraft] = useState('');
+
   const load = async () => {
     if (!recordingId) return;
     setLoading(true);
@@ -21,7 +32,6 @@ export default function QuoteRecordingDetail() {
       .select('*').eq('id', recordingId).maybeSingle();
     setRec(data as QuoteRecording | null);
     if (data?.audio_url) {
-      // 取得 signed URL（私有 bucket）
       const { data: urlData } = await supabase.storage.from('quote-recordings')
         .createSignedUrl(data.audio_url, 3600);
       setAudioUrl(urlData?.signedUrl ?? null);
@@ -31,7 +41,6 @@ export default function QuoteRecordingDetail() {
 
   useEffect(() => {
     load();
-    // 若狀態為處理中，每 5 秒輪詢一次
     const id = setInterval(() => {
       setRec(prev => {
         if (prev && ['uploaded', 'transcribing', 'extracting'].includes(prev.status)) {
@@ -43,6 +52,19 @@ export default function QuoteRecordingDetail() {
     return () => clearInterval(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [recordingId]);
+
+  const saveTitle = async () => {
+    if (!rec) return;
+    setBusy(true);
+    try {
+      await supabase.from(T.quoteRecordings)
+        .update({ title: titleDraft.trim() || rec.title }).eq('id', rec.id);
+      await load();
+      setEditingTitle(false);
+    } finally {
+      setBusy(false);
+    }
+  };
 
   const retryTranscribe = async () => {
     if (!rec) return;
@@ -66,12 +88,89 @@ export default function QuoteRecordingDetail() {
 
   const convertToQuote = async () => {
     if (!rec || !rec.extracted_data) return;
-    if (!confirm('要把此錄音解析的資料建立為新報價單嗎？\n（建立後可在報價單頁面繼續編輯）')) return;
+    const ext = rec.extracted_data;
+    const notesArr = notesToArray(ext.notes);
+
+    // 若已綁定報價單 → 補充更新；否則 → 建立新報價單
+    if (rec.quote_id) {
+      if (!confirm('要將此錄音的解析結果補充到原報價單嗎？\n\n（會把客戶資料以「沒填的欄位」為準補入，並把注意事項追加到備註區）')) return;
+      setBusy(true);
+      setMsg(null);
+      try {
+        const { data: existing } = await supabase.from(T.quotes)
+          .select('*').eq('id', rec.quote_id).maybeSingle();
+        if (!existing) throw new Error('原報價單不存在');
+
+        // 合併欄位（不覆蓋已有資料）
+        const updates: any = {};
+        if (!existing.customer_name && ext.customer_name) updates.customer_name = ext.customer_name;
+        if (!existing.phone && ext.phone) updates.phone = ext.phone;
+        if (!existing.email && ext.email) updates.email = ext.email;
+        if (!existing.address_from && ext.address_from) updates.address_from = ext.address_from;
+        if (!existing.address_to && ext.address_to) updates.address_to = ext.address_to;
+
+        // 合併備註（追加，不覆蓋）
+        let existingNotes: string[] = [];
+        try {
+          const parsed = existing.remark_notes ? JSON.parse(existing.remark_notes) : [];
+          existingNotes = Array.isArray(parsed) ? parsed : [];
+        } catch { /* ignore */ }
+        const merged = [...existingNotes, ...notesArr.filter(n => !existingNotes.includes(n))];
+        if (notesArr.length > 0) updates.remark_notes = JSON.stringify(merged);
+
+        if (Object.keys(updates).length > 0) {
+          await supabase.from(T.quotes).update(updates).eq('id', rec.quote_id);
+        }
+
+        // 同步更新計劃書（merge，不覆蓋）
+        if (ext.moving_date || ext.large_furniture || notesArr.length > 0) {
+          const { data: existingPlan } = await supabase.from(T.movingPlans)
+            .select('id, estimation').eq('quote_id', rec.quote_id).maybeSingle();
+          const oldEst: any = existingPlan?.estimation ?? {};
+          const planEst: any = {
+            ...oldEst,
+            expected_moving_date: oldEst.expected_moving_date || ext.moving_date,
+            arrival_time: oldEst.arrival_time || ext.arrival_time,
+            old_elevator: oldEst.old_elevator || ext.old_elevator,
+            new_elevator: oldEst.new_elevator || ext.new_elevator,
+            family_adults: oldEst.family_adults ?? ext.family_adults,
+            family_kids: oldEst.family_kids ?? ext.family_kids,
+            family_pets: oldEst.family_pets ?? ext.family_pets,
+            large_furniture: oldEst.large_furniture ?? ext.large_furniture?.map(f => ({ ...f, need_disassembly: false })),
+            large_appliances: oldEst.large_appliances ?? ext.large_appliances,
+            service_packing: oldEst.service_packing ?? ext.service_packing,
+            service_moving: oldEst.service_moving ?? ext.service_moving,
+            service_unpacking: oldEst.service_unpacking ?? ext.service_unpacking,
+            service_screening: oldEst.service_screening ?? ext.service_screening,
+            notes: oldEst.notes ? `${oldEst.notes}\n${notesArr.join('\n')}` : notesArr.join('\n'),
+            supplies: oldEst.supplies ?? {},
+          };
+          if (existingPlan) {
+            await supabase.from(T.movingPlans).update({ estimation: planEst }).eq('id', existingPlan.id);
+          } else {
+            await supabase.from(T.movingPlans).insert({
+              quote_id: rec.quote_id, estimation: planEst, execution: {}, review: {}, status: 'draft',
+            });
+          }
+        }
+
+        await supabase.from(T.quoteRecordings)
+          .update({ status: 'converted', converted_at: new Date().toISOString() })
+          .eq('id', rec.id);
+        navigate(`${basePath}/quotes/${rec.quote_id}`);
+      } catch (err: any) {
+        setMsg({ type: 'err', text: err.message ?? '更新失敗' });
+      } finally {
+        setBusy(false);
+      }
+      return;
+    }
+
+    // 沒綁定 → 建立新報價單
+    if (!confirm('要把此錄音解析的資料建立為新報價單嗎？')) return;
     setBusy(true);
     setMsg(null);
     try {
-      const ext = rec.extracted_data;
-      // 產生報價單號
       const ts = new Date();
       const quoteNumber = `Q${ts.getFullYear()}${String(ts.getMonth()+1).padStart(2,'0')}${String(ts.getDate()).padStart(2,'0')}-${String(ts.getHours()).padStart(2,'0')}${String(ts.getMinutes()).padStart(2,'0')}`;
 
@@ -82,13 +181,13 @@ export default function QuoteRecordingDetail() {
         email: ext.email ?? null,
         address_from: ext.address_from ?? null,
         address_to: ext.address_to ?? null,
+        remark_notes: notesArr.length > 0 ? JSON.stringify(notesArr) : null,
         subtotal: 0, total: 0, deposit: 0, status: '草稿',
         consultant_id: rec.consultant_id,
       }).select('id').single();
       if (error) throw error;
 
-      // 若有解析出 booking 相關資訊（搬家日），建立計劃書 estimation 預填
-      if (ext.moving_date || ext.arrival_time || ext.large_furniture || ext.notes) {
+      if (ext.moving_date || ext.large_furniture || notesArr.length > 0) {
         await supabase.from(T.movingPlans).insert({
           quote_id: q.id,
           estimation: {
@@ -105,14 +204,13 @@ export default function QuoteRecordingDetail() {
             service_moving: ext.service_moving,
             service_unpacking: ext.service_unpacking,
             service_screening: ext.service_screening,
-            notes: ext.notes,
+            notes: notesArr.join('\n'),
             supplies: {},
           },
           execution: {}, review: {}, status: 'draft',
         });
       }
 
-      // 標記錄音已轉成報價單
       await supabase.from(T.quoteRecordings)
         .update({ status: 'converted', quote_id: q.id, converted_at: new Date().toISOString() })
         .eq('id', rec.id);
@@ -136,6 +234,7 @@ export default function QuoteRecordingDetail() {
   }
 
   const ext = rec.extracted_data;
+  const notesList = ext ? notesToArray(ext.notes) : [];
   const isProcessing = ['uploaded', 'transcribing', 'extracting'].includes(rec.status);
 
   return (
@@ -146,27 +245,50 @@ export default function QuoteRecordingDetail() {
           <ArrowLeft size={18} />
         </Link>
         <div className="flex-1 min-w-0">
-          <h1 className="text-xl font-bold text-gray-800 truncate">{rec.title || '（未命名錄音）'}</h1>
+          {editingTitle ? (
+            <div className="flex items-center gap-2">
+              <input value={titleDraft} onChange={e => setTitleDraft(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && saveTitle()}
+                autoFocus
+                className="flex-1 border border-gray-200 rounded-lg px-3 py-1.5 text-base focus:outline-none focus:ring-2 focus:ring-brand-400" />
+              <button onClick={saveTitle} disabled={busy}
+                className="p-1.5 bg-brand-500 hover:bg-brand-600 text-white rounded-lg">
+                <Save size={16} />
+              </button>
+              <button onClick={() => setEditingTitle(false)}
+                className="p-1.5 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-lg">
+                <X size={16} />
+              </button>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2">
+              <h1 className="text-xl font-bold text-gray-800 truncate">{rec.title || '（未命名錄音）'}</h1>
+              <button onClick={() => { setTitleDraft(rec.title); setEditingTitle(true); }}
+                className="p-1 hover:bg-gray-100 rounded-lg flex-shrink-0" title="編輯標題">
+                <Pencil size={14} className="text-gray-400" />
+              </button>
+            </div>
+          )}
           <p className="text-xs text-gray-500 mt-0.5">
             {new Date(rec.created_at).toLocaleString('zh-TW')}
             {rec.audio_duration_sec ? ` ・ 時長 ${Math.floor(rec.audio_duration_sec/60)}:${String(rec.audio_duration_sec%60).padStart(2,'0')}` : ''}
           </p>
         </div>
-        {ext && rec.status !== 'converted' && (
+        {ext && (
           <button onClick={convertToQuote} disabled={busy}
             className="flex items-center gap-1.5 px-4 py-2 bg-brand-500 hover:bg-brand-600 text-white text-sm rounded-xl disabled:opacity-60">
-            <Wand2 size={15} />轉成報價單
+            <Wand2 size={15} />
+            {rec.quote_id ? '更新報價單' : '轉成報價單'}
           </button>
         )}
         {rec.quote_id && (
           <Link to={`${basePath}/quotes/${rec.quote_id}`}
             className="flex items-center gap-1.5 px-4 py-2 bg-purple-50 border border-purple-200 hover:bg-purple-100 text-purple-700 text-sm rounded-xl">
-            <FileText size={15} />已建立的報價單
+            <FileText size={15} />已連結報價單
           </Link>
         )}
       </div>
 
-      {/* 狀態提示 */}
       {isProcessing && (
         <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 flex items-center gap-3">
           <Loader2 size={20} className="animate-spin text-blue-600" />
@@ -201,7 +323,6 @@ export default function QuoteRecordingDetail() {
         </div>
       )}
 
-      {/* 音檔播放器 */}
       {audioUrl && (
         <div className="bg-white rounded-2xl border border-gray-100 p-5">
           <p className="text-sm font-medium text-gray-700 mb-3">🎙 錄音檔</p>
@@ -209,14 +330,13 @@ export default function QuoteRecordingDetail() {
         </div>
       )}
 
-      {/* 解析結果 */}
       {ext && (
         <div className="bg-white rounded-2xl border border-gray-100 p-5">
           <div className="flex items-center justify-between mb-4">
             <p className="font-bold text-gray-800">🤖 AI 解析結果</p>
             {rec.status === 'converted' && (
               <span className="inline-flex items-center gap-1 text-xs bg-green-100 text-green-700 px-2.5 py-1 rounded-full">
-                <CheckCircle2 size={12} />已建立報價單
+                <CheckCircle2 size={12} />{rec.quote_id ? '已連結' : '已建立'}報價單
               </span>
             )}
           </div>
@@ -248,16 +368,17 @@ export default function QuoteRecordingDetail() {
               <p className="text-sm">{ext.large_appliances.map(a => `${a.name}×${a.qty}`).join('、')}</p>
             </div>
           )}
-          {ext.notes && (
-            <div className="mt-3 bg-yellow-50 border-l-4 border-yellow-400 p-3 text-sm">
-              <p className="font-semibold text-yellow-800 mb-1">📌 注意事項</p>
-              <p className="text-yellow-900 whitespace-pre-wrap">{ext.notes}</p>
+          {notesList.length > 0 && (
+            <div className="mt-3 bg-yellow-50 border-l-4 border-yellow-400 p-3">
+              <p className="font-semibold text-yellow-800 mb-2 text-sm">📌 注意事項（將帶入報價單備註）</p>
+              <ul className="list-disc list-inside space-y-1 text-sm text-yellow-900">
+                {notesList.map((n, i) => <li key={i}>{n}</li>)}
+              </ul>
             </div>
           )}
         </div>
       )}
 
-      {/* 逐字稿 */}
       {rec.transcript && (
         <div className="bg-white rounded-2xl border border-gray-100 p-5">
           <p className="font-bold text-gray-800 mb-3">📝 逐字稿</p>

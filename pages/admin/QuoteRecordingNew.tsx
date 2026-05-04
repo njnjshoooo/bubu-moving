@@ -1,9 +1,61 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Mic, MicOff, Pause, Play, Square, Upload, AlertCircle } from 'lucide-react';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { ArrowLeft, Mic, MicOff, Pause, Play, Square, Upload, AlertCircle, FileText } from 'lucide-react';
 import { supabase, T } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import { useBasePath } from '../../lib/useBasePath';
+
+// 提示顧問要跟客戶確認的項目（分類）
+const CHECKLIST_GROUPS = [
+  {
+    title: '👤 客戶基本資料',
+    items: ['姓名', '電話', 'Email（選填）', '是否為決策者'],
+  },
+  {
+    title: '📍 舊家環境',
+    items: [
+      '完整地址（縣市、區、路名、門牌、樓層）',
+      '電梯：無 / 一般電梯 / 貨梯',
+      '電梯尺寸（公分）— 尤其大型家具能否進',
+      '卸貨區位置：地下室 / 路邊 / 巷弄',
+      '從車輛到電梯的步行距離（>30M 加費）',
+      '社區是否需要管理室通報 / 准入時段',
+    ],
+  },
+  {
+    title: '🏠 新家環境',
+    items: [
+      '完整地址（含樓層）',
+      '電梯：無 / 一般 / 貨梯 + 尺寸',
+      '卸貨區位置與步行距離',
+      '是否還在裝潢 / 有無人員協助',
+      '社區停車限制、進出時段、需通報',
+    ],
+  },
+  {
+    title: '📅 時程與服務',
+    items: [
+      '預計搬家日（日期）',
+      '搬家公司預計幾點到場',
+      '當天是否會入住（影響打包優先度）',
+      '需要哪些服務：打包 / 搬運 / 拆箱上架 / 斷捨離',
+    ],
+  },
+  {
+    title: '👨‍👩‍👧 家庭狀況',
+    items: ['大人 / 小孩 / 寵物 數量', '有無年長者、嬰幼兒（避開時段）'],
+  },
+  {
+    title: '📦 大型物品',
+    items: [
+      '床（單/雙/Queen/King）、衣櫃、沙發、餐桌',
+      '冰箱、洗衣機、烘衣機、除濕機、冷氣',
+      '鋼琴、保險箱、藝術品、骨董',
+      '是否需要拆裝',
+      '易碎品（玻璃、陶瓷、樂器、3C）',
+    ],
+  },
+];
 
 type RecState = 'idle' | 'recording' | 'paused' | 'stopped' | 'uploading';
 
@@ -17,10 +69,28 @@ export default function QuoteRecordingNew() {
   const { profile } = useAuth();
   const basePath = useBasePath();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const linkedQuoteId = searchParams.get('quoteId');
 
   const [title, setTitle] = useState('');
   const [customerName, setCustomerName] = useState('');
   const [phone, setPhone] = useState('');
+  const [linkedQuoteInfo, setLinkedQuoteInfo] = useState<{ quote_number: string; customer_name: string } | null>(null);
+
+  // 若帶 quoteId，載入報價單資訊並預填客戶資料
+  useEffect(() => {
+    if (!linkedQuoteId) return;
+    supabase.from(T.quotes).select('quote_number, customer_name, phone')
+      .eq('id', linkedQuoteId).maybeSingle()
+      .then(({ data }) => {
+        if (data) {
+          setLinkedQuoteInfo({ quote_number: data.quote_number, customer_name: data.customer_name });
+          setCustomerName(data.customer_name ?? '');
+          setPhone(data.phone ?? '');
+          setTitle(`${data.customer_name ?? '客戶'} ・ 補充錄音 ・ ${new Date().toLocaleDateString('zh-TW')}`);
+        }
+      });
+  }, [linkedQuoteId]);
 
   const [state, setState] = useState<RecState>('idle');
   const [seconds, setSeconds] = useState(0);
@@ -129,7 +199,7 @@ export default function QuoteRecordingNew() {
         consultantId = c?.id ?? null;
       }
 
-      // 建立 recording row
+      // 建立 recording row（若帶 quoteId 直接綁定）
       const { data: rec, error: insErr } = await supabase.from(T.quoteRecordings).insert({
         created_by_user_id: profile?.id,
         consultant_id: consultantId,
@@ -140,6 +210,7 @@ export default function QuoteRecordingNew() {
         audio_duration_sec: seconds,
         audio_size_bytes: audioBlob.size,
         status: 'uploaded',
+        quote_id: linkedQuoteId || null,
       }).select('id').single();
       if (insErr) throw insErr;
 
@@ -159,14 +230,25 @@ export default function QuoteRecordingNew() {
   return (
     <div className="max-w-2xl mx-auto space-y-5">
       <div className="flex items-center gap-3">
-        <Link to={`${basePath}/recordings`} className="p-2 hover:bg-gray-100 rounded-xl">
+        <Link to={linkedQuoteId ? `${basePath}/quotes/${linkedQuoteId}` : `${basePath}/recordings`} className="p-2 hover:bg-gray-100 rounded-xl">
           <ArrowLeft size={18} />
         </Link>
         <div>
-          <h1 className="text-xl font-bold text-gray-800">新增錄音</h1>
+          <h1 className="text-xl font-bold text-gray-800">{linkedQuoteId ? '補充錄音' : '新增錄音'}</h1>
           <p className="text-xs text-gray-500">錄音後系統會自動轉逐字稿並解析報價資訊</p>
         </div>
       </div>
+
+      {/* 連結報價單提示 */}
+      {linkedQuoteInfo && (
+        <div className="bg-purple-50 border border-purple-200 rounded-xl p-4 flex items-start gap-3">
+          <FileText size={18} className="text-purple-600 mt-0.5 flex-shrink-0" />
+          <div>
+            <p className="font-medium text-purple-800 text-sm">補充到報價單 {linkedQuoteInfo.quote_number}</p>
+            <p className="text-xs text-purple-700 mt-0.5">客戶：{linkedQuoteInfo.customer_name}・上傳後解析結果會追加至此報價單</p>
+          </div>
+        </div>
+      )}
 
       {/* 基本資料 */}
       <div className="bg-white rounded-2xl border border-gray-100 p-5 space-y-3">
@@ -281,12 +363,29 @@ export default function QuoteRecordingNew() {
         )}
       </div>
 
+      {/* 確認清單：顧問通話時要逐項確認 */}
+      <div className="bg-white rounded-2xl border border-gray-100 p-5">
+        <p className="font-bold text-gray-800 mb-1">📋 通話確認清單</p>
+        <p className="text-xs text-gray-500 mb-4">提示：以下項目請於通話中逐項確認，事後 AI 才能準確解析。</p>
+        <div className="space-y-4">
+          {CHECKLIST_GROUPS.map((g, i) => (
+            <div key={i}>
+              <p className="text-sm font-semibold text-gray-700 mb-1.5">{g.title}</p>
+              <ul className="text-xs text-gray-600 space-y-1 pl-4">
+                {g.items.map((item, j) => (
+                  <li key={j} className="list-disc">{item}</li>
+                ))}
+              </ul>
+            </div>
+          ))}
+        </div>
+      </div>
+
       <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 text-xs text-blue-800">
         <p className="font-medium mb-1">💡 使用建議</p>
         <ul className="list-disc list-inside space-y-0.5 text-blue-700">
           <li>建議在安靜環境錄音，效果最佳</li>
-          <li>錄音時清楚說出：客戶姓名、電話、舊家地址、新家地址、預計搬家日</li>
-          <li>提到的家具、家電、特殊物品也會自動被解析</li>
+          <li>錄音時請依「通話確認清單」逐項詢問</li>
           <li>錄音上傳後約 30~60 秒內完成轉錄</li>
         </ul>
       </div>
