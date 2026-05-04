@@ -11,6 +11,15 @@ function notesToArray(notes: string | string[] | null | undefined): string[] {
   return notes.split(/\r?\n/).map(s => s.replace(/^[-•*●・]\s*/, '').trim()).filter(Boolean);
 }
 
+// 把 schedule_items 依日期 + 開始時間排序
+function sortScheduleItems<T extends { work_date: string; start_time: string }>(items: T[]): T[] {
+  return [...items].sort((a, b) => {
+    const ka = `${a.work_date} ${a.start_time}`;
+    const kb = `${b.work_date} ${b.start_time}`;
+    return ka.localeCompare(kb);
+  });
+}
+
 export default function QuoteRecordingDetail() {
   const { recordingId } = useParams();
   const basePath = useBasePath();
@@ -131,22 +140,23 @@ export default function QuoteRecordingDetail() {
           await supabase.from(T.quotes).update(updates).eq('id', rec.quote_id);
         }
 
-        // 追加作業排程到 bubu_quote_schedule_items
+        // 追加作業排程到 bubu_quote_schedule_items（按時間排序）
         if (ext.schedule_items && ext.schedule_items.length > 0) {
           const { data: existingSched } = await supabase.from(T.quoteSchedule)
             .select('sort_order').eq('quote_id', rec.quote_id).order('sort_order', { ascending: false }).limit(1);
           let nextOrder = (existingSched?.[0]?.sort_order ?? -1) + 1;
-          const rows = ext.schedule_items
-            .filter(s => s.work_date && s.start_time && s.label)
-            .map(s => ({
-              quote_id: rec.quote_id,
-              work_date: s.work_date,
-              start_time: `${s.start_time}:00`,
-              end_time: `${(s.end_time && s.end_time !== 'null') ? s.end_time : s.start_time}:00`,
-              label: s.label,
-              category: '',
-              sort_order: nextOrder++,
-            }));
+          const sorted = sortScheduleItems(
+            ext.schedule_items.filter(s => s.work_date && s.start_time && s.label)
+          );
+          const rows = sorted.map(s => ({
+            quote_id: rec.quote_id,
+            work_date: s.work_date,
+            start_time: `${s.start_time}:00`,
+            end_time: `${(s.end_time && s.end_time !== 'null') ? s.end_time : s.start_time}:00`,
+            label: s.label,
+            category: '',
+            sort_order: nextOrder++,
+          }));
           if (rows.length > 0) {
             await supabase.from(T.quoteSchedule).insert(rows);
           }
@@ -225,19 +235,20 @@ export default function QuoteRecordingDetail() {
       }).select('id').single();
       if (error) throw error;
 
-      // 寫入作業排程
+      // 寫入作業排程（按時間排序）
       if (ext.schedule_items && ext.schedule_items.length > 0) {
-        const rows = ext.schedule_items
-          .filter(s => s.work_date && s.start_time && s.label)
-          .map((s, i) => ({
-            quote_id: q.id,
-            work_date: s.work_date,
-            start_time: `${s.start_time}:00`,
-            end_time: `${(s.end_time && s.end_time !== 'null') ? s.end_time : s.start_time}:00`,
-            label: s.label,
-            category: '',
-            sort_order: i,
-          }));
+        const sorted = sortScheduleItems(
+          ext.schedule_items.filter(s => s.work_date && s.start_time && s.label)
+        );
+        const rows = sorted.map((s, i) => ({
+          quote_id: q.id,
+          work_date: s.work_date,
+          start_time: `${s.start_time}:00`,
+          end_time: `${(s.end_time && s.end_time !== 'null') ? s.end_time : s.start_time}:00`,
+          label: s.label,
+          category: '',
+          sort_order: i,
+        }));
         if (rows.length > 0) {
           await supabase.from(T.quoteSchedule).insert(rows);
         }
@@ -449,12 +460,12 @@ export default function QuoteRecordingDetail() {
             </div>
           )}
 
-          {/* 作業排程 */}
+          {/* 作業排程（依日期 + 時間排序） */}
           {ext.schedule_items && ext.schedule_items.length > 0 && (
             <div className="mt-3 bg-purple-50 border-l-4 border-purple-400 p-3">
               <p className="font-semibold text-purple-800 mb-2 text-sm">📅 作業排程（將寫入報價單排程區）</p>
               <ul className="space-y-1 text-sm text-purple-900">
-                {ext.schedule_items.map((s, i) => (
+                {sortScheduleItems(ext.schedule_items.filter(s => s.work_date && s.start_time)).map((s, i) => (
                   <li key={i}>
                     {s.work_date} {s.start_time}{s.end_time && s.end_time !== 'null' ? `–${s.end_time}` : ''} ・ {s.label}
                   </li>

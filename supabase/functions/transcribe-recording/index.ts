@@ -58,14 +58,32 @@ const EXTRACT_SYSTEM_PROMPT = `你是搬家公司的助理。請從顧問與客�
 - 數字欄位用數字（不要字串）
 - 地址盡量完整（縣市+區+路名+門牌+樓層）
 
-schedule_items 解析規則：
-- 從逐字稿中找出**所有「日期+時間+作業」**的描述，逐一列出
-  例：「5/20 10:00 過來清運」→ {work_date:"${CURRENT_YEAR}-05-20", start_time:"10:00", end_time:null, label:"清運"}
-  例：「5/20 11:00 開始打包，下午 1 點打包結束」→
-       {work_date:"${CURRENT_YEAR}-05-20", start_time:"11:00", end_time:"13:00", label:"舊家打包"}
-- 若只有開始時間沒結束時間，end_time 用 null
-- label 用簡短名詞，常見：清運、舊家打包、包材送達、搬家公司抵達、新家上架、收尾
-- 沒有任何時段提及就回 schedule_items: []
+⭐ schedule_items 是非常重要的欄位，請務必認真抓取！
+
+判斷原則：
+- 只要逐字稿中出現「日期 + 時間 + 動作 / 作業」的組合，就**必抓進來**
+- 動作 / 作業 = 搬家相關的動詞或名詞（不限以下範例，只要是搬家事務都算）
+- 時間表達可能是「10點」「10:00」「上午十點」「10時」「下午1點」「13:00」⋯⋯，全都要轉成 24 小時制 HH:MM
+- 日期表達可能是「5/20」「5月20日」「五月二十號」「下週三」「明天」⋯⋯
+  - 「5/20」→ ${CURRENT_YEAR}-05-20（若已過則 ${CURRENT_YEAR + 1}）
+  - 「明天」「下週」用相對時間自行推算（搭配當前年份）
+- 端時間：
+  - 講了結束時間就填，例：「11 點到 13 點打包」→ end_time:"13:00"
+  - 沒講結束時間就 end_time 設為 start_time（或 null）
+
+範例：
+逐字稿片段「5/20 早上 10 點要過來清運，11 點開始打包到下午 1 點，下午 2 點搬家公司會到，4 點開始上架」
+→ schedule_items:
+[
+  {"work_date": "${CURRENT_YEAR}-05-20", "start_time": "10:00", "end_time": "10:00", "label": "清運"},
+  {"work_date": "${CURRENT_YEAR}-05-20", "start_time": "11:00", "end_time": "13:00", "label": "打包"},
+  {"work_date": "${CURRENT_YEAR}-05-20", "start_time": "14:00", "end_time": "14:00", "label": "搬家公司抵達"},
+  {"work_date": "${CURRENT_YEAR}-05-20", "start_time": "16:00", "end_time": "16:00", "label": "新家上架"}
+]
+
+label 直接用客戶說的動作（如：「清運」「打包」「上架」「搬家公司抵達」「包材送達」「收尾」⋯）
+排序：請按日期 + 開始時間 由早到晚排列
+若整段沒提到任何時段：schedule_items: []
 
 notes 是陣列，每項一句短話。包含：
   • 特殊物品（鋼琴、保險箱、藝術品...）
@@ -115,6 +133,13 @@ serve(async (req) => {
     formData.append('model', 'whisper-large-v3');
     formData.append('language', 'zh');
     formData.append('response_format', 'verbose_json');
+    // 提示文字：用繁體字樣偏好 + 搬家相關詞彙，引導 Whisper 輸出繁體中文
+    formData.append('prompt',
+      '以下是台灣搬家公司顧問與客戶的繁體中文對話。請使用繁體中文輸出。' +
+      '常見詞彙：顧問、客戶、舊家、新家、地址、台北市、新北市、預計搬家日、' +
+      '電梯、貨梯、卸貨區、地下室、管理室、警衛、打包、上架、清運、車趟、' +
+      '包材、紙箱、易碎品、鋼琴、衣櫃、沙發、冰箱、洗衣機。'
+    );
 
     const transcribeRes = await fetch('https://api.groq.com/openai/v1/audio/transcriptions', {
       method: 'POST',
