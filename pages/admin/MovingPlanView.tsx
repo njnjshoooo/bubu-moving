@@ -193,30 +193,10 @@ export default function MovingPlanView() {
           <Row label="地板防護" value={est.floor_protection ? '需要' : '不需要'} />
         </div>
 
-        {/* 3. 衣服鞋子打包 */}
-        <Header title="衣服鞋子打包方式" num="③" />
-        <p className="text-sm">
-          {[
-            est.clothes_hanging && '掛衣箱',
-            est.clothes_folded && '折疊入紙箱',
-            est.clothes_vacuum && '真空壓縮',
-          ].filter(Boolean).join('、') || '—'}
-        </p>
-        {est.clothes_other && <Row label="其他說明" value={est.clothes_other} />}
-
-        {/* 4. 包材配送 */}
-        <Header title="包材 / 紙箱配送" num="④" />
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-1">
-          <Row label="可收件日期" value={est.supplies_dates?.join('、')} />
-          <Row label="配送時段" value={est.delivery_time_slot ? deliverySlotLabel[est.delivery_time_slot] : undefined} />
-          <Row label="管理室代收" value={est.mgmt_pickup ? '是' : '否'} />
-          <Row label="管理室電話" value={est.mgmt_pickup_phone} />
-        </div>
-
-        {/* 5. 包材（自報價單帶入） */}
+        {/* 4. 包材（自報價單帶入） */}
         {supplyItems.length > 0 && (
           <>
-            <Header title="包材" num="⑤" />
+            <Header title="包材" num="④" />
             <p className="text-xs text-gray-400 mb-2">資料來源：報價單包材費項目</p>
             <table className="w-full text-sm border-collapse">
               <thead>
@@ -247,116 +227,114 @@ export default function MovingPlanView() {
           </>
         )}
 
-        {/* 6. 服務目標 */}
-        <Header title="本次服務目標" num="⑥" />
-        <p className="text-sm">
-          {[
-            est.service_packing && '物品打包裝箱',
-            est.service_moving && '搬家（車輛運輸）',
-            est.service_unpacking && '物品拆箱上架',
-            est.service_screening && '打包前篩選（斷捨離）',
-          ].filter(Boolean).join('、') || '—'}
-        </p>
-        <Row label="現場人員" value={(est.onsite_staff ?? []).join('、')} />
-        {est.onsite_staff_other && <Row label="其他說明" value={est.onsite_staff_other} />}
-
-        {/* 7. 空間狀態 */}
-        <Header title="空間狀態 / 物品異動" num="⑦" />
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-1">
-          <Row label="服務空間" value={est.work_space} />
-          <Row label="坪數相對應" value={est.size_change ? sizeChangeLabel[est.size_change] : undefined} />
+        {/* 5. 舊家現況 */}
+        <Header title="舊家現況" num="⑤" />
+        <div className="grid grid-cols-2 gap-x-6 gap-y-1">
+          <Row label="坪數" value={est.old_area_ping} />
+          <Row label="易碎物品數量" value={est.old_fragile_count} />
+          <Row label="櫃體外部" value={est.old_cabinet_outside} />
+          <Row label="櫃體內部" value={est.old_cabinet_inside} />
         </div>
-        {est.item_movements && est.item_movements.length > 0 && (
-          <div className="mt-2">
-            <p className="font-semibold text-gray-700 mb-2">物品異動表</p>
-            <table className="w-full text-sm border-collapse">
-              <thead>
-                <tr className="bg-gray-50 border-y border-gray-200">
-                  <th className="text-left px-3 py-2">舊家：原空間</th>
-                  <th className="text-left px-3 py-2">物品</th>
-                  <th className="text-left px-3 py-2">新家：異動空間</th>
-                </tr>
-              </thead>
-              <tbody>
-                {est.item_movements.map((m, i) => (
-                  <tr key={i} className="border-b border-gray-100">
-                    <td className="px-3 py-2">{m.from}</td>
-                    <td className="px-3 py-2 font-medium">{m.name}</td>
-                    <td className="px-3 py-2">{m.to}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+        {est.old_photos_url && (
+          <div className="mt-1 text-sm">
+            <span className="text-gray-500">照片：</span>
+            <a href={est.old_photos_url} target="_blank" rel="noreferrer" className="text-brand-600 underline break-all">{est.old_photos_url}</a>
           </div>
         )}
 
-        {/* 8. 現況 */}
-        <Header title="舊家 / 新家現況" num="⑧" />
-        <div>
-          <p className="font-semibold text-gray-700 mb-2">🏠 舊家</p>
-          <div className="grid grid-cols-2 gap-x-6 gap-y-1">
-            <Row label="坪數" value={est.old_area_ping} />
-            <Row label="易碎物品數量" value={est.old_fragile_count} />
-            <Row label="櫃體外部" value={est.old_cabinet_outside} />
-            <Row label="櫃體內部" value={est.old_cabinet_inside} />
-          </div>
-          {est.old_photos_url && (
-            <div className="mt-1 text-sm">
-              <span className="text-gray-500">照片：</span>
-              <a href={est.old_photos_url} target="_blank" rel="noreferrer" className="text-brand-600 underline break-all">{est.old_photos_url}</a>
-            </div>
-          )}
+        {/* 6. 新家現況 */}
+        <Header title="新家現況" num="⑥" />
+        <div className="grid grid-cols-2 gap-x-6 gap-y-1">
+          <Row label="坪數" value={est.new_area_ping} />
+          <Row label="收納空間" value={est.new_storage_level ? storageLevelLabel[est.new_storage_level] : undefined} />
         </div>
-        <div className="mt-3 pt-3 border-t border-gray-100">
-          <p className="font-semibold text-gray-700 mb-2">🏡 新家</p>
-          <div className="grid grid-cols-2 gap-x-6 gap-y-1">
-            <Row label="坪數" value={est.new_area_ping} />
-            <Row label="收納空間" value={est.new_storage_level ? storageLevelLabel[est.new_storage_level] : undefined} />
-          </div>
-          <Row label="物品狀況" value={[
-            est.new_item_status?.empty && '全空',
-            est.new_item_status?.already_arranged && '已有擺設',
-            est.new_item_status?.already_packed && '物品已打包',
-          ].filter(Boolean).join('、')} />
-          {est.new_item_status?.other && <Row label="其他" value={est.new_item_status.other} />}
-          {est.new_photos_url && (
-            <div className="mt-1 text-sm">
-              <span className="text-gray-500">照片：</span>
-              <a href={est.new_photos_url} target="_blank" rel="noreferrer" className="text-brand-600 underline break-all">{est.new_photos_url}</a>
-            </div>
-          )}
-        </div>
-
-        {/* 9. 人力預估 */}
-        <Header title="預估人力" num="⑨" />
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-x-6 gap-y-1">
-          <Row label="預估時數" value={est.estimated_hours ? `${est.estimated_hours} 小時` : undefined} />
-          <Row label="預估人數" value={est.estimated_people ? `${est.estimated_people} 人` : undefined} />
-          <Row label="預估天數" value={est.estimated_days ? `${est.estimated_days} 天` : undefined} />
-        </div>
-        {est.need_screening && (
-          <div className="mt-3 pt-3 border-t border-gray-100">
-            <p className="font-semibold text-gray-700 mb-2">打包前篩選</p>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-x-6 gap-y-1">
-              <Row label="篩選時數" value={est.screening_hours ? `${est.screening_hours} 小時` : undefined} />
-              <Row label="篩選人數" value={est.screening_people ? `${est.screening_people} 人` : undefined} />
-              <Row label="篩選天數" value={est.screening_days ? `${est.screening_days} 天` : undefined} />
-            </div>
-          </div>
-        )}
-        {est.notes && (
-          <div className="bg-yellow-50 border-l-4 border-yellow-400 p-3 mt-3 text-sm">
-            <p className="font-semibold text-yellow-800 mb-1">📌 備註</p>
-            <p className="text-yellow-900 whitespace-pre-wrap">{est.notes}</p>
+        <Row label="物品狀況" value={[
+          est.new_item_status?.empty && '全空',
+          est.new_item_status?.already_arranged && '已有擺設',
+          est.new_item_status?.already_packed && '物品已打包',
+        ].filter(Boolean).join('、')} />
+        {est.new_item_status?.other && <Row label="其他" value={est.new_item_status.other} />}
+        {est.new_photos_url && (
+          <div className="mt-1 text-sm">
+            <span className="text-gray-500">照片：</span>
+            <a href={est.new_photos_url} target="_blank" rel="noreferrer" className="text-brand-600 underline break-all">{est.new_photos_url}</a>
           </div>
         )}
 
-        {/* 10. 執行規劃書 */}
+        {/* 7. 備註 */}
+        {(est.clothes_hanging || est.clothes_folded || est.clothes_vacuum || est.clothes_other ||
+          est.work_space || est.size_change ||
+          (est.item_movements && est.item_movements.length > 0) || est.notes) && (
+          <>
+            <Header title="備註" num="⑦" />
+
+            {/* 衣服打包 */}
+            {(est.clothes_hanging || est.clothes_folded || est.clothes_vacuum || est.clothes_other) && (
+              <div>
+                <p className="font-semibold text-gray-700 mb-1">👕 衣服鞋子打包方式</p>
+                <p className="text-sm">
+                  {[
+                    est.clothes_hanging && '掛衣箱',
+                    est.clothes_folded && '折疊入紙箱',
+                    est.clothes_vacuum && '真空壓縮',
+                  ].filter(Boolean).join('、') || '—'}
+                </p>
+                {est.clothes_other && <Row label="其他說明" value={est.clothes_other} />}
+              </div>
+            )}
+
+            {/* 空間狀態 */}
+            {(est.work_space || est.size_change) && (
+              <div className="mt-3 pt-3 border-t border-gray-100">
+                <p className="font-semibold text-gray-700 mb-1">🏠 空間狀態</p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-1">
+                  <Row label="服務空間" value={est.work_space} />
+                  <Row label="坪數相對應" value={est.size_change ? sizeChangeLabel[est.size_change] : undefined} />
+                </div>
+              </div>
+            )}
+
+            {/* 物品異動表 */}
+            {est.item_movements && est.item_movements.length > 0 && (
+              <div className="mt-3 pt-3 border-t border-gray-100">
+                <p className="font-semibold text-gray-700 mb-2">📦 物品異動表</p>
+                <table className="w-full text-sm border-collapse">
+                  <thead>
+                    <tr className="bg-gray-50 border-y border-gray-200">
+                      <th className="text-left px-3 py-2">舊家：原空間</th>
+                      <th className="text-left px-3 py-2">物品</th>
+                      <th className="text-left px-3 py-2">新家：異動空間</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {est.item_movements.map((m, i) => (
+                      <tr key={i} className="border-b border-gray-100">
+                        <td className="px-3 py-2">{m.from}</td>
+                        <td className="px-3 py-2 font-medium">{m.name}</td>
+                        <td className="px-3 py-2">{m.to}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            {/* 自由文字備註 */}
+            {est.notes && (
+              <div className="bg-yellow-50 border-l-4 border-yellow-400 p-3 mt-3 text-sm">
+                <p className="font-semibold text-yellow-800 mb-1">📝 其他備註</p>
+                <p className="text-yellow-900 whitespace-pre-wrap">{est.notes}</p>
+              </div>
+            )}
+          </>
+        )}
+
+        {/* 8. 執行規劃書 */}
         {(exec.main_consultant || exec.packing_start || exec.tour_start ||
           exec.loading_start || (exec.loading_items && exec.loading_items.length > 0) ||
           exec.loading_items_other) && (
           <>
-            <Header title="執行規劃書" num="⑩" />
+            <Header title="執行規劃書" num="⑧" />
             <Row label="主整聊師" value={exec.main_consultant} />
 
             {/* 導覽 */}
@@ -434,12 +412,11 @@ export default function MovingPlanView() {
           </>
         )}
 
-        {/* 11. 實際執行回顧 */}
-        {(review.actual_summary || review.gap_analysis) && (
+        {/* 9. 服務後備註 */}
+        {review.actual_summary && (
           <>
-            <Header title="實際執行回顧" num="⑪" />
-            {review.actual_summary && <Row label="實際安排" value={<span className="whitespace-pre-wrap">{review.actual_summary}</span>} />}
-            {review.gap_analysis && <Row label="落差分析" value={<span className="whitespace-pre-wrap">{review.gap_analysis}</span>} />}
+            <Header title="服務後備註" num="⑨" />
+            <p className="text-sm whitespace-pre-wrap">{review.actual_summary}</p>
           </>
         )}
 

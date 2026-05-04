@@ -296,8 +296,38 @@ export default function MovingPlanBuilder() {
         </div>
       </Section>
 
-      {/* Part 2: 大型物品 / 防護 */}
-      <Section title="2. 大型物品 / 防護" badge="家具 / 家電 / 防護" defaultOpen={false}>
+      {/* Part 2: 需求簡述（一條龍項目 + 現場人員） */}
+      <Section title="2. 需求簡述" badge="一條龍項目">
+        <div className="flex flex-wrap gap-4">
+          <CB checked={!!est.service_packing} onChange={v => upd('service_packing', v)} label="物品打包裝箱" />
+          <CB checked={!!est.service_moving} onChange={v => upd('service_moving', v)} label="搬家（車輛運輸）" />
+          <CB checked={!!est.service_unpacking} onChange={v => upd('service_unpacking', v)} label="物品拆箱上架" />
+          <CB checked={!!est.service_screening} onChange={v => upd('service_screening', v)} label="打包前篩選（斷捨離）" />
+        </div>
+        <div className="border-t border-gray-100 pt-3">
+          <Field label="服務當天現場人員（可複選）">
+            <div className="flex flex-wrap gap-4">
+              {['客戶本人', '家人', '裝潢施工人員', '其他'].map(role => {
+                const checked = (est.onsite_staff ?? []).includes(role);
+                return (
+                  <CB key={role} checked={checked} onChange={v => {
+                    const next = v
+                      ? [...(est.onsite_staff ?? []), role]
+                      : (est.onsite_staff ?? []).filter(r => r !== role);
+                    upd('onsite_staff', next);
+                  }} label={role} />
+                );
+              })}
+            </div>
+          </Field>
+          <Field label="其他現場人員說明">
+            <input value={est.onsite_staff_other ?? ''} onChange={e => upd('onsite_staff_other', e.target.value)} className={inputCls} />
+          </Field>
+        </div>
+      </Section>
+
+      {/* Part 3: 大型物品 / 防護 */}
+      <Section title="3. 大型物品 / 防護" badge="家具 / 家電 / 防護" defaultOpen={false}>
         {/* 家具 */}
         <div>
           <div className="flex items-center justify-between mb-2">
@@ -359,49 +389,11 @@ export default function MovingPlanBuilder() {
         </div>
       </Section>
 
-      {/* Part 3: 衣服鞋子打包 */}
-      <Section title="3. 衣服鞋子打包方式" defaultOpen={false}>
-        <div className="flex flex-wrap gap-4">
-          <CB checked={!!est.clothes_hanging} onChange={v => upd('clothes_hanging', v)} label="掛衣箱（西裝、洋裝）" />
-          <CB checked={!!est.clothes_folded} onChange={v => upd('clothes_folded', v)} label="折疊入紙箱" />
-          <CB checked={!!est.clothes_vacuum} onChange={v => upd('clothes_vacuum', v)} label="真空壓縮" />
-        </div>
-        <Field label="其他說明">
-          <input value={est.clothes_other ?? ''} onChange={e => upd('clothes_other', e.target.value)}
-            placeholder="例如：鞋子用鞋盒、珠寶另外收..." className={inputCls} />
-        </Field>
-      </Section>
-
-      {/* Part 4: 包材 / 紙箱 */}
-      <Section title="4. 寄送包材 / 紙箱" defaultOpen={false}>
-        <Field label="可收件日期（可複選，用逗號分隔）">
-          <input value={(est.supplies_dates ?? []).join(', ')}
-            onChange={e => upd('supplies_dates', e.target.value.split(',').map(s => s.trim()).filter(Boolean))}
-            placeholder="2026-05-01, 2026-05-02" className={inputCls} />
-        </Field>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-          <div className="md:col-span-1">
-            <CB checked={!!est.mgmt_pickup} onChange={v => upd('mgmt_pickup', v)} label="管理室代收" />
-          </div>
-          <Field label="管理室電話">
-            <input value={est.mgmt_pickup_phone ?? ''} onChange={e => upd('mgmt_pickup_phone', e.target.value)} className={inputCls} />
-          </Field>
-          <Field label="配送時段">
-            <select value={est.delivery_time_slot ?? ''} onChange={e => upd('delivery_time_slot', e.target.value as any)} className={inputCls}>
-              <option value="">—</option>
-              <option value="am">上午</option>
-              <option value="pm">下午</option>
-              <option value="anytime">皆可</option>
-            </select>
-          </Field>
-        </div>
-      </Section>
-
-      {/* Part 5: 包材（自報價單帶入） */}
+      {/* Part 4: 包材（自報價單帶入） */}
       {(() => {
         const quoteTotal = quoteSupplyItems.reduce((s, it) => s + it.unit_price * it.quantity, 0);
         return (
-          <Section title="5. 包材" badge={quoteSupplyItems.length > 0 ? `自報價單帶入 NT$ ${quoteTotal.toLocaleString()}` : '尚未報價'} defaultOpen={false}>
+          <Section title="4. 包材" badge={quoteSupplyItems.length > 0 ? `自報價單帶入 NT$ ${quoteTotal.toLocaleString()}` : '尚未報價'} defaultOpen={false}>
             {quoteSupplyItems.length > 0 ? (
               <>
                 <p className="text-xs text-gray-500 mb-2">以下品項自動由報價單「包材費」帶入，欲修改請至報價單編輯。</p>
@@ -441,81 +433,8 @@ export default function MovingPlanBuilder() {
         );
       })()}
 
-      {/* Part 6: 本次服務目標 */}
-      <Section title="6. 本次服務目標" badge="一條龍項目" defaultOpen={false}>
-        <div className="flex flex-wrap gap-4">
-          <CB checked={!!est.service_packing} onChange={v => upd('service_packing', v)} label="物品打包裝箱" />
-          <CB checked={!!est.service_moving} onChange={v => upd('service_moving', v)} label="搬家（車輛運輸）" />
-          <CB checked={!!est.service_unpacking} onChange={v => upd('service_unpacking', v)} label="物品拆箱上架" />
-          <CB checked={!!est.service_screening} onChange={v => upd('service_screening', v)} label="打包前篩選（斷捨離）" />
-        </div>
-        <div className="border-t border-gray-100 pt-3">
-          <Field label="服務當天現場人員（可複選）">
-            <div className="flex flex-wrap gap-4">
-              {['客戶本人', '家人', '裝潢施工人員', '其他'].map(role => {
-                const checked = (est.onsite_staff ?? []).includes(role);
-                return (
-                  <CB key={role} checked={checked} onChange={v => {
-                    const next = v
-                      ? [...(est.onsite_staff ?? []), role]
-                      : (est.onsite_staff ?? []).filter(r => r !== role);
-                    upd('onsite_staff', next);
-                  }} label={role} />
-                );
-              })}
-            </div>
-          </Field>
-          <Field label="其他現場人員說明">
-            <input value={est.onsite_staff_other ?? ''} onChange={e => upd('onsite_staff_other', e.target.value)} className={inputCls} />
-          </Field>
-        </div>
-      </Section>
-
-      {/* Part 7: 空間狀態 */}
-      <Section title="7. 空間狀態 / 物品異動" defaultOpen={false}>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          <Field label="服務空間（全室 / 部分 / 不處理的空間）">
-            <input value={est.work_space ?? ''} onChange={e => upd('work_space', e.target.value)} className={inputCls} />
-          </Field>
-          <Field label="坪數相對應">
-            <select value={est.size_change ?? ''} onChange={e => upd('size_change', e.target.value as any)} className={inputCls}>
-              <option value="">—</option>
-              <option value="same">坪數相近</option>
-              <option value="small_to_big">小搬大</option>
-              <option value="big_to_small">大搬小</option>
-            </select>
-          </Field>
-        </div>
-
-        {/* 物品異動表 */}
-        <div className="border-t border-gray-100 pt-3">
-          <div className="flex items-center justify-between mb-2">
-            <p className="text-sm font-medium text-gray-700">物品異動表</p>
-            <button type="button" onClick={addMovement} className="text-xs text-brand-600 hover:underline flex items-center gap-1">
-              <Plus size={12} />新增一項
-            </button>
-          </div>
-          <div className="space-y-2">
-            {(est.item_movements ?? []).map((m, i) => (
-              <div key={i} className="grid grid-cols-12 gap-2 items-center">
-                <input value={m.from} onChange={e => updMovement(i, { from: e.target.value })}
-                  placeholder="舊家：原空間" className={`col-span-4 ${inputCls}`} />
-                <input value={m.name} onChange={e => updMovement(i, { name: e.target.value })}
-                  placeholder="物品名稱" className={`col-span-3 ${inputCls}`} />
-                <input value={m.to} onChange={e => updMovement(i, { to: e.target.value })}
-                  placeholder="新家：異動空間" className={`col-span-4 ${inputCls}`} />
-                <button type="button" onClick={() => delMovement(i)} className="col-span-1 p-2 text-red-400 hover:bg-red-50 rounded-lg">
-                  <Trash2 size={14} />
-                </button>
-              </div>
-            ))}
-          </div>
-        </div>
-      </Section>
-
-      {/* Part 8: 舊家現況 / 新家現況 */}
-      <Section title="8. 舊家現況 / 新家現況" defaultOpen={false}>
-        <p className="text-sm font-medium text-gray-700">🏠 舊家現況</p>
+      {/* Part 5: 舊家現況 */}
+      <Section title="5. 舊家現況" defaultOpen={false}>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           <Field label="坪數"><input type="number" value={est.old_area_ping ?? 0} onChange={e => upd('old_area_ping', +e.target.value)} className={inputCls} /></Field>
           <Field label="易碎物品數量"><input type="number" value={est.old_fragile_count ?? 0} onChange={e => upd('old_fragile_count', +e.target.value)} className={inputCls} /></Field>
@@ -539,59 +458,101 @@ export default function MovingPlanBuilder() {
             <input value={est.old_photos_url ?? ''} onChange={e => upd('old_photos_url', e.target.value)} placeholder="https://..." className={inputCls} />
           </Field>
         </div>
-
-        <div className="border-t border-gray-100 pt-3">
-          <p className="text-sm font-medium text-gray-700 mb-2">🏡 新家現況</p>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            <Field label="坪數"><input type="number" value={est.new_area_ping ?? 0} onChange={e => upd('new_area_ping', +e.target.value)} className={inputCls} /></Field>
-            <Field label="收納空間">
-              <select value={est.new_storage_level ?? ''} onChange={e => upd('new_storage_level', e.target.value as any)} className={inputCls}>
-                <option value="">—</option>
-                <option value="much">收納空間多</option>
-                <option value="little">收納空間寡</option>
-              </select>
-            </Field>
-          </div>
-          <Field label="新家現有物品狀況（可複選）">
-            <div className="flex flex-wrap gap-4">
-              <CB checked={!!est.new_item_status?.empty} onChange={v => upd('new_item_status', { ...(est.new_item_status ?? {}), empty: v })} label="全空" />
-              <CB checked={!!est.new_item_status?.already_arranged} onChange={v => upd('new_item_status', { ...(est.new_item_status ?? {}), already_arranged: v })} label="已有擺設" />
-              <CB checked={!!est.new_item_status?.already_packed} onChange={v => upd('new_item_status', { ...(est.new_item_status ?? {}), already_packed: v })} label="物品已打包" />
-            </div>
-          </Field>
-          <Field label="其他說明">
-            <input value={est.new_item_status?.other ?? ''} onChange={e => upd('new_item_status', { ...(est.new_item_status ?? {}), other: e.target.value })} className={inputCls} />
-          </Field>
-          <Field label="照片連結">
-            <input value={est.new_photos_url ?? ''} onChange={e => upd('new_photos_url', e.target.value)} placeholder="https://..." className={inputCls} />
-          </Field>
-        </div>
       </Section>
 
-      {/* Part 9: 預估人力 */}
-      <Section title="9. 預估人力 / 時數" defaultOpen={false}>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-          <Field label="預估時數"><input type="number" value={est.estimated_hours ?? 0} onChange={e => upd('estimated_hours', +e.target.value)} className={inputCls} /></Field>
-          <Field label="預估人數"><input type="number" value={est.estimated_people ?? 0} onChange={e => upd('estimated_people', +e.target.value)} className={inputCls} /></Field>
-          <Field label="預估天數"><input type="number" value={est.estimated_days ?? 0} onChange={e => upd('estimated_days', +e.target.value)} className={inputCls} /></Field>
+      {/* Part 6: 新家現況 */}
+      <Section title="6. 新家現況" defaultOpen={false}>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <Field label="坪數"><input type="number" value={est.new_area_ping ?? 0} onChange={e => upd('new_area_ping', +e.target.value)} className={inputCls} /></Field>
+          <Field label="收納空間">
+            <select value={est.new_storage_level ?? ''} onChange={e => upd('new_storage_level', e.target.value as any)} className={inputCls}>
+              <option value="">—</option>
+              <option value="much">收納空間多</option>
+              <option value="little">收納空間寡</option>
+            </select>
+          </Field>
         </div>
-        <div className="border-t border-gray-100 pt-3">
-          <CB checked={!!est.need_screening} onChange={v => upd('need_screening', v)} label="包含打包前篩選（斷捨離）" />
-          {est.need_screening && (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mt-2">
-              <Field label="篩選時數"><input type="number" value={est.screening_hours ?? 0} onChange={e => upd('screening_hours', +e.target.value)} className={inputCls} /></Field>
-              <Field label="篩選人數"><input type="number" value={est.screening_people ?? 0} onChange={e => upd('screening_people', +e.target.value)} className={inputCls} /></Field>
-              <Field label="篩選天數"><input type="number" value={est.screening_days ?? 0} onChange={e => upd('screening_days', +e.target.value)} className={inputCls} /></Field>
-            </div>
-          )}
-        </div>
-        <Field label="額外備註">
-          <textarea value={est.notes ?? ''} rows={3} onChange={e => upd('notes', e.target.value)} className={`${inputCls} resize-none`} />
+        <Field label="新家現有物品狀況（可複選）">
+          <div className="flex flex-wrap gap-4">
+            <CB checked={!!est.new_item_status?.empty} onChange={v => upd('new_item_status', { ...(est.new_item_status ?? {}), empty: v })} label="全空" />
+            <CB checked={!!est.new_item_status?.already_arranged} onChange={v => upd('new_item_status', { ...(est.new_item_status ?? {}), already_arranged: v })} label="已有擺設" />
+            <CB checked={!!est.new_item_status?.already_packed} onChange={v => upd('new_item_status', { ...(est.new_item_status ?? {}), already_packed: v })} label="物品已打包" />
+          </div>
+        </Field>
+        <Field label="其他說明">
+          <input value={est.new_item_status?.other ?? ''} onChange={e => upd('new_item_status', { ...(est.new_item_status ?? {}), other: e.target.value })} className={inputCls} />
+        </Field>
+        <Field label="照片連結">
+          <input value={est.new_photos_url ?? ''} onChange={e => upd('new_photos_url', e.target.value)} placeholder="https://..." className={inputCls} />
         </Field>
       </Section>
 
-      {/* Part 10: 執行規劃書 */}
-      <Section title="10. 執行規劃書（主整聊師製作）" defaultOpen={false}>
+      {/* Part 7: 備註（衣服打包 + 空間狀態 + 物品異動 + 自由文字）*/}
+      <Section title="7. 備註" defaultOpen={false}>
+        <div>
+          <p className="text-sm font-medium text-gray-700 mb-2">👕 衣服鞋子打包方式</p>
+          <div className="flex flex-wrap gap-4 mb-2">
+            <CB checked={!!est.clothes_hanging} onChange={v => upd('clothes_hanging', v)} label="掛衣箱（西裝、洋裝）" />
+            <CB checked={!!est.clothes_folded} onChange={v => upd('clothes_folded', v)} label="折疊入紙箱" />
+            <CB checked={!!est.clothes_vacuum} onChange={v => upd('clothes_vacuum', v)} label="真空壓縮" />
+          </div>
+          <Field label="其他說明">
+            <input value={est.clothes_other ?? ''} onChange={e => upd('clothes_other', e.target.value)}
+              placeholder="例如：鞋子用鞋盒、珠寶另外收..." className={inputCls} />
+          </Field>
+        </div>
+
+        <div className="border-t border-gray-100 pt-3">
+          <p className="text-sm font-medium text-gray-700 mb-2">🏠 空間狀態</p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <Field label="服務空間（全室 / 部分 / 不處理的空間）">
+              <input value={est.work_space ?? ''} onChange={e => upd('work_space', e.target.value)} className={inputCls} />
+            </Field>
+            <Field label="坪數相對應">
+              <select value={est.size_change ?? ''} onChange={e => upd('size_change', e.target.value as any)} className={inputCls}>
+                <option value="">—</option>
+                <option value="same">坪數相近</option>
+                <option value="small_to_big">小搬大</option>
+                <option value="big_to_small">大搬小</option>
+              </select>
+            </Field>
+          </div>
+        </div>
+
+        <div className="border-t border-gray-100 pt-3">
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-sm font-medium text-gray-700">📦 物品異動表</p>
+            <button type="button" onClick={addMovement} className="text-xs text-brand-600 hover:underline flex items-center gap-1">
+              <Plus size={12} />新增一項
+            </button>
+          </div>
+          <div className="space-y-2">
+            {(est.item_movements ?? []).map((m, i) => (
+              <div key={i} className="grid grid-cols-12 gap-2 items-center">
+                <input value={m.from} onChange={e => updMovement(i, { from: e.target.value })}
+                  placeholder="舊家：原空間" className={`col-span-4 ${inputCls}`} />
+                <input value={m.name} onChange={e => updMovement(i, { name: e.target.value })}
+                  placeholder="物品名稱" className={`col-span-3 ${inputCls}`} />
+                <input value={m.to} onChange={e => updMovement(i, { to: e.target.value })}
+                  placeholder="新家：異動空間" className={`col-span-4 ${inputCls}`} />
+                <button type="button" onClick={() => delMovement(i)} className="col-span-1 p-2 text-red-400 hover:bg-red-50 rounded-lg">
+                  <Trash2 size={14} />
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="border-t border-gray-100 pt-3">
+          <Field label="📝 其他備註">
+            <textarea value={est.notes ?? ''} rows={3} onChange={e => upd('notes', e.target.value)}
+              placeholder="任何其他需要記錄的事項..." className={`${inputCls} resize-none`} />
+          </Field>
+        </div>
+      </Section>
+
+      {/* Part 8: 執行規劃書 */}
+      <Section title="8. 執行規劃書（主整聊師製作）" defaultOpen={false}>
         <Field label="主整聊師">
           <input value={exec.main_consultant ?? ''} onChange={e => setExec({ ...exec, main_consultant: e.target.value })} className={inputCls} />
         </Field>
@@ -692,13 +653,14 @@ export default function MovingPlanBuilder() {
         </div>
       </Section>
 
-      {/* Part 11: 實際執行回顧 */}
-      <Section title="11. 實際執行回顧" defaultOpen={false}>
-        <Field label="實際時間 / 空間 / 人力安排">
-          <textarea value={review.actual_summary ?? ''} rows={3} onChange={e => setReview({ ...review, actual_summary: e.target.value })} className={`${inputCls} resize-none`} />
-        </Field>
-        <Field label="執行分配 vs 規劃的落差原因">
-          <textarea value={review.gap_analysis ?? ''} rows={3} onChange={e => setReview({ ...review, gap_analysis: e.target.value })} className={`${inputCls} resize-none`} />
+      {/* Part 9: 服務後備註 */}
+      <Section title="9. 服務後備註" defaultOpen={false}>
+        <p className="text-xs text-gray-500 mb-2">服務結束後由顧問填寫，記錄實際狀況與後續追蹤事項。</p>
+        <Field label="服務後備註">
+          <textarea value={review.actual_summary ?? ''} rows={5}
+            onChange={e => setReview({ ...review, actual_summary: e.target.value })}
+            placeholder="實際安排、客戶反饋、需追蹤事項..."
+            className={`${inputCls} resize-none`} />
         </Field>
       </Section>
 
