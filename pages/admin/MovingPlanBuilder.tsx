@@ -189,24 +189,25 @@ export default function MovingPlanBuilder() {
   }
 
   return (
-    <div className="space-y-5 max-w-5xl mx-auto">
+    <div className="space-y-5 max-w-5xl mx-auto pb-24 lg:pb-5">
       {/* Header */}
       <div className="flex items-center gap-3 flex-wrap">
         <Link to={`${basePath}/quotes/${quoteId}/view`} className="p-2 hover:bg-gray-100 rounded-xl">
           <ArrowLeft size={18} />
         </Link>
         <div className="flex-1 min-w-0">
-          <h1 className="text-xl font-bold text-gray-800">搬家計劃書</h1>
-          <p className="text-sm text-gray-500">
+          <h1 className="text-lg lg:text-xl font-bold text-gray-800 truncate">搬家計劃書</h1>
+          <p className="text-xs lg:text-sm text-gray-500 truncate">
             {quoteCustomer ? `${quoteCustomer.name} ・ ${quoteCustomer.phone}` : ''}
           </p>
         </div>
+        {/* 桌面版按鈕 */}
         <Link to={`${basePath}/quotes/${quoteId}/plan/view`}
-          className="flex items-center gap-1.5 text-sm px-4 py-2 border border-gray-200 text-gray-700 rounded-xl hover:bg-gray-50">
+          className="hidden lg:flex items-center gap-1.5 text-sm px-4 py-2 border border-gray-200 text-gray-700 rounded-xl hover:bg-gray-50">
           <Printer size={15} />預覽 / 列印
         </Link>
         <button onClick={save} disabled={saving}
-          className="flex items-center gap-1.5 text-sm px-4 py-2 bg-brand-500 hover:bg-brand-600 text-white rounded-xl disabled:opacity-60">
+          className="hidden lg:flex items-center gap-1.5 text-sm px-4 py-2 bg-brand-500 hover:bg-brand-600 text-white rounded-xl disabled:opacity-60">
           <Save size={15} />{saving ? '儲存中...' : '儲存'}
         </button>
       </div>
@@ -664,11 +665,15 @@ export default function MovingPlanBuilder() {
         </Field>
       </Section>
 
-      {/* Bottom save */}
-      <div className="sticky bottom-0 bg-white border-t border-gray-200 p-4 -mx-4 lg:-mx-6 flex items-center justify-end gap-2">
+      {/* 手機版底部固定按鈕（桌面版使用標題右側按鈕）*/}
+      <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-4 py-3 flex gap-2 z-30 shadow-[0_-4px_8px_rgba(0,0,0,0.05)]">
+        <Link to={`${basePath}/quotes/${quoteId}/plan/view`}
+          className="flex-1 flex items-center justify-center gap-1.5 px-4 py-2.5 border border-gray-200 text-gray-700 text-sm rounded-xl">
+          <Printer size={15} />預覽
+        </Link>
         <button onClick={save} disabled={saving}
-          className="flex items-center gap-1.5 px-5 py-2 bg-brand-500 hover:bg-brand-600 text-white rounded-xl disabled:opacity-60">
-          <Save size={15} />{saving ? '儲存中...' : '儲存搬家計劃書'}
+          className="flex-1 flex items-center justify-center gap-1.5 px-4 py-2.5 bg-brand-500 hover:bg-brand-600 text-white text-sm rounded-xl disabled:opacity-60">
+          <Save size={15} />{saving ? '儲存中...' : '儲存'}
         </button>
       </div>
     </div>
