@@ -445,4 +445,17 @@ export interface ExtractedQuoteData {
   service_unpacking?: boolean;
   service_screening?: boolean;
   notes?: string | string[];     // 注意事項（陣列為主，舊資料可能是 string）
+
+  // ── 地址細節（會帶入報價單 address_*_type / parking / basement / guard）
+  address_from_type?: string;     // 住宅類型（公寓 / 大樓 / 透天 / 別墅 / 工廠 / 其他）
+  address_from_parking?: string;  // 停車或臨停區描述
+  address_from_basement?: string; // 地下室狀況或高度
+  address_from_guard?: string;    // 管理室狀況
+  address_to_type?: string;
+  address_to_parking?: string;
+  address_to_basement?: string;
+  address_to_guard?: string;
+
+  // ── 作業排程（會寫入 bubu_quote_schedule_items）
+  schedule_items?: { work_date: string; start_time: string; end_time?: string; label: string }[];
 }

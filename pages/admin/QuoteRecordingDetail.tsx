@@ -93,7 +93,7 @@ export default function QuoteRecordingDetail() {
 
     // 若已綁定報價單 → 補充更新；否則 → 建立新報價單
     if (rec.quote_id) {
-      if (!confirm('要將此錄音的解析結果補充到原報價單嗎？\n\n（會把客戶資料以「沒填的欄位」為準補入，並把注意事項追加到備註區）')) return;
+      if (!confirm('要將此錄音的解析結果補充到原報價單嗎？\n\n（客戶資料以「沒填的欄位」為準補入；注意事項追加到備註；作業排程追加到排程區）')) return;
       setBusy(true);
       setMsg(null);
       try {
@@ -108,6 +108,15 @@ export default function QuoteRecordingDetail() {
         if (!existing.email && ext.email) updates.email = ext.email;
         if (!existing.address_from && ext.address_from) updates.address_from = ext.address_from;
         if (!existing.address_to && ext.address_to) updates.address_to = ext.address_to;
+        // 地址細節
+        if (!existing.address_from_type && ext.address_from_type) updates.address_from_type = ext.address_from_type;
+        if (!existing.address_from_parking && ext.address_from_parking) updates.address_from_parking = ext.address_from_parking;
+        if (!existing.address_from_basement && ext.address_from_basement) updates.address_from_basement = ext.address_from_basement;
+        if (!existing.address_from_guard && ext.address_from_guard) updates.address_from_guard = ext.address_from_guard;
+        if (!existing.address_to_type && ext.address_to_type) updates.address_to_type = ext.address_to_type;
+        if (!existing.address_to_parking && ext.address_to_parking) updates.address_to_parking = ext.address_to_parking;
+        if (!existing.address_to_basement && ext.address_to_basement) updates.address_to_basement = ext.address_to_basement;
+        if (!existing.address_to_guard && ext.address_to_guard) updates.address_to_guard = ext.address_to_guard;
 
         // 合併備註（追加，不覆蓋）
         let existingNotes: string[] = [];
@@ -120,6 +129,27 @@ export default function QuoteRecordingDetail() {
 
         if (Object.keys(updates).length > 0) {
           await supabase.from(T.quotes).update(updates).eq('id', rec.quote_id);
+        }
+
+        // 追加作業排程到 bubu_quote_schedule_items
+        if (ext.schedule_items && ext.schedule_items.length > 0) {
+          const { data: existingSched } = await supabase.from(T.quoteSchedule)
+            .select('sort_order').eq('quote_id', rec.quote_id).order('sort_order', { ascending: false }).limit(1);
+          let nextOrder = (existingSched?.[0]?.sort_order ?? -1) + 1;
+          const rows = ext.schedule_items
+            .filter(s => s.work_date && s.start_time && s.label)
+            .map(s => ({
+              quote_id: rec.quote_id,
+              work_date: s.work_date,
+              start_time: `${s.start_time}:00`,
+              end_time: `${(s.end_time && s.end_time !== 'null') ? s.end_time : s.start_time}:00`,
+              label: s.label,
+              category: '',
+              sort_order: nextOrder++,
+            }));
+          if (rows.length > 0) {
+            await supabase.from(T.quoteSchedule).insert(rows);
+          }
         }
 
         // 同步更新計劃書（merge，不覆蓋）
@@ -181,11 +211,37 @@ export default function QuoteRecordingDetail() {
         email: ext.email ?? null,
         address_from: ext.address_from ?? null,
         address_to: ext.address_to ?? null,
+        address_from_type: ext.address_from_type ?? null,
+        address_from_parking: ext.address_from_parking ?? null,
+        address_from_basement: ext.address_from_basement ?? null,
+        address_from_guard: ext.address_from_guard ?? null,
+        address_to_type: ext.address_to_type ?? null,
+        address_to_parking: ext.address_to_parking ?? null,
+        address_to_basement: ext.address_to_basement ?? null,
+        address_to_guard: ext.address_to_guard ?? null,
         remark_notes: notesArr.length > 0 ? JSON.stringify(notesArr) : null,
         subtotal: 0, total: 0, deposit: 0, status: '草稿',
         consultant_id: rec.consultant_id,
       }).select('id').single();
       if (error) throw error;
+
+      // 寫入作業排程
+      if (ext.schedule_items && ext.schedule_items.length > 0) {
+        const rows = ext.schedule_items
+          .filter(s => s.work_date && s.start_time && s.label)
+          .map((s, i) => ({
+            quote_id: q.id,
+            work_date: s.work_date,
+            start_time: `${s.start_time}:00`,
+            end_time: `${(s.end_time && s.end_time !== 'null') ? s.end_time : s.start_time}:00`,
+            label: s.label,
+            category: '',
+            sort_order: i,
+          }));
+        if (rows.length > 0) {
+          await supabase.from(T.quoteSchedule).insert(rows);
+        }
+      }
 
       if (ext.moving_date || ext.large_furniture || notesArr.length > 0) {
         await supabase.from(T.movingPlans).insert({
@@ -368,6 +424,45 @@ export default function QuoteRecordingDetail() {
               <p className="text-sm">{ext.large_appliances.map(a => `${a.name}×${a.qty}`).join('、')}</p>
             </div>
           )}
+
+          {/* 地址細節 */}
+          {(ext.address_from_type || ext.address_from_parking || ext.address_from_basement || ext.address_from_guard) && (
+            <div className="mt-3 bg-gray-50 rounded-lg p-3">
+              <p className="text-xs font-medium text-gray-500 mb-1">🏠 舊家環境</p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-1 text-sm">
+                <Row label="類型" value={ext.address_from_type} />
+                <Row label="停車" value={ext.address_from_parking} />
+                <Row label="地下室" value={ext.address_from_basement} />
+                <Row label="管理室" value={ext.address_from_guard} />
+              </div>
+            </div>
+          )}
+          {(ext.address_to_type || ext.address_to_parking || ext.address_to_basement || ext.address_to_guard) && (
+            <div className="mt-2 bg-gray-50 rounded-lg p-3">
+              <p className="text-xs font-medium text-gray-500 mb-1">🏡 新家環境</p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-1 text-sm">
+                <Row label="類型" value={ext.address_to_type} />
+                <Row label="停車" value={ext.address_to_parking} />
+                <Row label="地下室" value={ext.address_to_basement} />
+                <Row label="管理室" value={ext.address_to_guard} />
+              </div>
+            </div>
+          )}
+
+          {/* 作業排程 */}
+          {ext.schedule_items && ext.schedule_items.length > 0 && (
+            <div className="mt-3 bg-purple-50 border-l-4 border-purple-400 p-3">
+              <p className="font-semibold text-purple-800 mb-2 text-sm">📅 作業排程（將寫入報價單排程區）</p>
+              <ul className="space-y-1 text-sm text-purple-900">
+                {ext.schedule_items.map((s, i) => (
+                  <li key={i}>
+                    {s.work_date} {s.start_time}{s.end_time && s.end_time !== 'null' ? `–${s.end_time}` : ''} ・ {s.label}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
           {notesList.length > 0 && (
             <div className="mt-3 bg-yellow-50 border-l-4 border-yellow-400 p-3">
               <p className="font-semibold text-yellow-800 mb-2 text-sm">📌 注意事項（將帶入報價單備註）</p>

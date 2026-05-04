@@ -14,16 +14,27 @@ const ok = (body: any, status = 200) => new Response(JSON.stringify(body), {
 });
 
 // 解析 JSON 結果的 prompt
+const CURRENT_YEAR = new Date().getFullYear();
 const EXTRACT_SYSTEM_PROMPT = `你是搬家公司的助理。請從顧問與客戶的通話逐字稿中，解析出以下資訊並以 JSON 格式回傳。
+
+當前年份是 ${CURRENT_YEAR}，若客戶說「5/20」「5月20日」這類沒寫年份的日期，請使用 ${CURRENT_YEAR}（若已過則用 ${CURRENT_YEAR + 1}）。
 
 只回傳純 JSON（不要包 markdown code block），格式如下：
 {
   "customer_name": "客戶姓名（沒提到留 null）",
   "phone": "電話（沒提到留 null）",
   "email": "Email（沒提到留 null）",
-  "address_from": "舊址（盡量完整縣市區地址）",
+  "address_from": "舊址（盡量完整縣市區地址 + 樓層）",
   "address_to": "新址",
-  "moving_date": "YYYY-MM-DD（沒提到留 null）",
+  "address_from_type": "公寓 / 大樓 / 透天 / 別墅 / 工廠 / 其他（沒提到留 null）",
+  "address_from_parking": "停車或臨停描述，例：路邊臨停 / 地下室停車場 / 巷弄無法停車（沒提到留 null）",
+  "address_from_basement": "地下室狀況，例：B1 高度 2.2M / 無地下室 / B2 限高 2M（沒提到留 null）",
+  "address_from_guard": "管理室狀況，例：24小時警衛 / 無管理 / 需先通報（沒提到留 null）",
+  "address_to_type": "新址同上分類",
+  "address_to_parking": "新址停車狀況",
+  "address_to_basement": "新址地下室狀況",
+  "address_to_guard": "新址管理室狀況",
+  "moving_date": "YYYY-MM-DD 預計搬家日（沒提到留 null）",
   "arrival_time": "HH:MM 24 小時制（搬家公司預計到場時間，沒提到留 null）",
   "family_adults": 數字（家中大人，沒提到留 null）,
   "family_kids": 數字（小孩）,
@@ -36,20 +47,33 @@ const EXTRACT_SYSTEM_PROMPT = `你是搬家公司的助理。請從顧問與客�
   "service_moving": true/false（是否需要搬運）,
   "service_unpacking": true/false（是否需要拆箱上架）,
   "service_screening": true/false（是否需要打包前篩選/斷捨離）,
-  "notes": ["注意事項1", "注意事項2", ...]（陣列，每項一句話，列出客戶提到的特殊狀況）
+  "notes": ["注意事項1", "注意事項2", ...]（陣列，每項一句話，列出客戶提到的特殊狀況）,
+  "schedule_items": [
+    {"work_date": "YYYY-MM-DD", "start_time": "HH:MM", "end_time": "HH:MM 或 null", "label": "作業名稱"}
+  ]
 }
 
 務必：
 - 沒提到的欄位用 null（不要編造）
 - 數字欄位用數字（不要字串）
-- 地址盡量完整（縣市+區+路名+樓層）
-- notes 是陣列，每項一句短話。包含：
+- 地址盡量完整（縣市+區+路名+門牌+樓層）
+
+schedule_items 解析規則：
+- 從逐字稿中找出**所有「日期+時間+作業」**的描述，逐一列出
+  例：「5/20 10:00 過來清運」→ {work_date:"${CURRENT_YEAR}-05-20", start_time:"10:00", end_time:null, label:"清運"}
+  例：「5/20 11:00 開始打包，下午 1 點打包結束」→
+       {work_date:"${CURRENT_YEAR}-05-20", start_time:"11:00", end_time:"13:00", label:"舊家打包"}
+- 若只有開始時間沒結束時間，end_time 用 null
+- label 用簡短名詞，常見：清運、舊家打包、包材送達、搬家公司抵達、新家上架、收尾
+- 沒有任何時段提及就回 schedule_items: []
+
+notes 是陣列，每項一句短話。包含：
   • 特殊物品（鋼琴、保險箱、藝術品...）
   • 易碎品提醒
-  • 樓層 / 電梯限制
+  • 樓層 / 電梯尺寸限制
   • 寵物注意事項
   • 兒童在場
-  • 客戶特別交代（時間、停車、進出限制...）`;
+  • 客戶特別交代（時間、停車、進出限制、社區管理規則...）`;
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
