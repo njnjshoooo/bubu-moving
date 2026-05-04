@@ -30,17 +30,22 @@ export default function MovingPlanView() {
   const basePath = useBasePath();
   const [plan, setPlan] = useState<MovingPlan | null>(null);
   const [quote, setQuote] = useState<any>(null);
+  const [supplyItems, setSupplyItems] = useState<{ name: string; unit_price: number; quantity: number }[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (!quoteId) return;
     (async () => {
-      const [{ data: q }, { data: p }] = await Promise.all([
+      const [{ data: q }, { data: p }, { data: items }] = await Promise.all([
         supabase.from(T.quotes).select('*').eq('id', quoteId).maybeSingle(),
         supabase.from(T.movingPlans).select('*').eq('quote_id', quoteId).maybeSingle(),
+        supabase.from(T.quoteItems)
+          .select('name, unit_price, quantity')
+          .eq('quote_id', quoteId).eq('category', '包材費').order('sort_order'),
       ]);
       setQuote(q);
       setPlan(p as MovingPlan | null);
+      setSupplyItems(items ?? []);
       setLoading(false);
     })();
   }, [quoteId]);
@@ -62,7 +67,6 @@ export default function MovingPlanView() {
   const est: MovingPlanEstimation = plan.estimation ?? { supplies: {} };
   const exec: MovingPlanExecution = plan.execution ?? {};
   const review: MovingPlanReview = plan.review ?? {};
-  const supplies = est.supplies ?? {};
 
   return (
     <div className="max-w-4xl mx-auto">
@@ -134,8 +138,8 @@ export default function MovingPlanView() {
           {est.family_other && <Row label="其他說明" value={est.family_other} />}
         </div>
 
-        {/* 2. 家具 / 家電 */}
-        <Header title="家具 / 家電 / 防護" num="②" />
+        {/* 2. 大型物品 / 防護 */}
+        <Header title="大型物品 / 防護" num="②" />
         {est.large_furniture && est.large_furniture.length > 0 && (
           <div>
             <p className="font-semibold text-gray-700 mb-2">大型家具</p>
@@ -209,43 +213,39 @@ export default function MovingPlanView() {
           <Row label="管理室電話" value={est.mgmt_pickup_phone} />
         </div>
 
-        {/* 5. 耗材估算 */}
-        <Header title="耗材估算" num="⑤" />
-        <table className="w-full text-sm border-collapse">
-          <thead>
-            <tr className="bg-gray-50 border-y border-gray-200">
-              <th className="text-left px-3 py-2">品項</th>
-              <th className="text-center px-3 py-2">單價</th>
-              <th className="text-center px-3 py-2">數量</th>
-              <th className="text-right px-3 py-2">小計</th>
-            </tr>
-          </thead>
-          <tbody>
-            {[
-              { k: 'small_box',    name: '小紙箱',            price: 50 },
-              { k: 'large_box',    name: '大紙箱',            price: 70 },
-              { k: 'tape',         name: '膠帶',              price: 25 },
-              { k: 'bubble_wrap',  name: '氣泡紙（半捲）',    price: 400 },
-              { k: 'brown_paper',  name: '土報紙（半包）',    price: 400 },
-            ].map(({ k, name, price }) => {
-              const qty = (supplies as any)[k] ?? 0;
-              return (
-                <tr key={k} className="border-b border-gray-100">
-                  <td className="px-3 py-2">{name}</td>
-                  <td className="text-center px-3 py-2">${price}</td>
-                  <td className="text-center px-3 py-2">{qty}</td>
-                  <td className="text-right px-3 py-2">${(price * qty).toLocaleString()}</td>
+        {/* 5. 包材（自報價單帶入） */}
+        {supplyItems.length > 0 && (
+          <>
+            <Header title="包材" num="⑤" />
+            <p className="text-xs text-gray-400 mb-2">資料來源：報價單包材費項目</p>
+            <table className="w-full text-sm border-collapse">
+              <thead>
+                <tr className="bg-gray-50 border-y border-gray-200">
+                  <th className="text-left px-3 py-2">品項</th>
+                  <th className="text-center px-3 py-2">單價</th>
+                  <th className="text-center px-3 py-2">數量</th>
+                  <th className="text-right px-3 py-2">小計</th>
                 </tr>
-              );
-            })}
-            <tr className="bg-brand-50 font-bold">
-              <td colSpan={3} className="text-right px-3 py-2">合計</td>
-              <td className="text-right px-3 py-2 text-brand-600">
-                ${Object.entries(supplies).reduce((sum, [k, v]) => sum + ({ small_box: 50, large_box: 70, tape: 25, bubble_wrap: 400, brown_paper: 400 } as any)[k] * (v ?? 0), 0).toLocaleString()}
-              </td>
-            </tr>
-          </tbody>
-        </table>
+              </thead>
+              <tbody>
+                {supplyItems.map((it, i) => (
+                  <tr key={i} className="border-b border-gray-100">
+                    <td className="px-3 py-2">{it.name}</td>
+                    <td className="text-center px-3 py-2">${it.unit_price.toLocaleString()}</td>
+                    <td className="text-center px-3 py-2">{it.quantity}</td>
+                    <td className="text-right px-3 py-2">${(it.unit_price * it.quantity).toLocaleString()}</td>
+                  </tr>
+                ))}
+                <tr className="bg-brand-50 font-bold">
+                  <td colSpan={3} className="text-right px-3 py-2">合計</td>
+                  <td className="text-right px-3 py-2 text-brand-600">
+                    ${supplyItems.reduce((s, it) => s + it.unit_price * it.quantity, 0).toLocaleString()}
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </>
+        )}
 
         {/* 6. 服務目標 */}
         <Header title="本次服務目標" num="⑥" />

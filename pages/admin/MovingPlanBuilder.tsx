@@ -62,6 +62,7 @@ export default function MovingPlanBuilder() {
   const [exec, setExec] = useState<MovingPlanExecution>({});
   const [review, setReview] = useState<MovingPlanReview>({});
   const [quoteCustomer, setQuoteCustomer] = useState<{ name: string; phone: string; address_from: string; address_to: string } | null>(null);
+  const [quoteSupplyItems, setQuoteSupplyItems] = useState<{ name: string; unit_price: number; quantity: number }[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -99,6 +100,12 @@ export default function MovingPlanBuilder() {
         .select('work_date, start_time').eq('quote_id', quoteId)
         .order('sort_order').limit(1);
       const firstStaff = staffRows?.[0];
+
+      // 載入報價單包材費項目（顯示在計劃書「包材」區塊）
+      const { data: supplyItems } = await supabase.from(T.quoteItems)
+        .select('name, unit_price, quantity').eq('quote_id', quoteId)
+        .eq('category', '包材費').order('sort_order');
+      setQuoteSupplyItems(supplyItems ?? []);
 
       // 載入或建立計劃書
       const { data: existing } = await supabase.from(T.movingPlans)
@@ -289,8 +296,8 @@ export default function MovingPlanBuilder() {
         </div>
       </Section>
 
-      {/* Part 2: 大型家具 / 家電 / 防護 */}
-      <Section title="2. 注意事項" badge="家具 / 家電 / 防護" defaultOpen={false}>
+      {/* Part 2: 大型物品 / 防護 */}
+      <Section title="2. 大型物品 / 防護" badge="家具 / 家電 / 防護" defaultOpen={false}>
         {/* 家具 */}
         <div>
           <div className="flex items-center justify-between mb-2">
@@ -390,31 +397,49 @@ export default function MovingPlanBuilder() {
         </div>
       </Section>
 
-      {/* Part 5: 耗材估算 */}
-      <Section title="5. 耗材估算" badge={`共 NT$ ${materialCost.toLocaleString()}`} defaultOpen={false}>
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
-          <Field label="小紙箱 $50">
-            <input type="number" min={0} value={est.supplies?.small_box ?? 0}
-              onChange={e => upd('supplies', { ...est.supplies, small_box: +e.target.value })} className={inputCls} />
-          </Field>
-          <Field label="大紙箱 $70">
-            <input type="number" min={0} value={est.supplies?.large_box ?? 0}
-              onChange={e => upd('supplies', { ...est.supplies, large_box: +e.target.value })} className={inputCls} />
-          </Field>
-          <Field label="膠帶 $25">
-            <input type="number" min={0} value={est.supplies?.tape ?? 0}
-              onChange={e => upd('supplies', { ...est.supplies, tape: +e.target.value })} className={inputCls} />
-          </Field>
-          <Field label="氣泡紙 $400/半捲">
-            <input type="number" min={0} value={est.supplies?.bubble_wrap ?? 0}
-              onChange={e => upd('supplies', { ...est.supplies, bubble_wrap: +e.target.value })} className={inputCls} />
-          </Field>
-          <Field label="土報紙 $400/半包">
-            <input type="number" min={0} value={est.supplies?.brown_paper ?? 0}
-              onChange={e => upd('supplies', { ...est.supplies, brown_paper: +e.target.value })} className={inputCls} />
-          </Field>
-        </div>
-      </Section>
+      {/* Part 5: 包材（自報價單帶入） */}
+      {(() => {
+        const quoteTotal = quoteSupplyItems.reduce((s, it) => s + it.unit_price * it.quantity, 0);
+        return (
+          <Section title="5. 包材" badge={quoteSupplyItems.length > 0 ? `自報價單帶入 NT$ ${quoteTotal.toLocaleString()}` : '尚未報價'} defaultOpen={false}>
+            {quoteSupplyItems.length > 0 ? (
+              <>
+                <p className="text-xs text-gray-500 mb-2">以下品項自動由報價單「包材費」帶入，欲修改請至報價單編輯。</p>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm border-collapse min-w-[400px]">
+                    <thead>
+                      <tr className="bg-gray-50 border-y border-gray-200">
+                        <th className="text-left px-3 py-2">品項</th>
+                        <th className="text-center px-3 py-2 w-20">單價</th>
+                        <th className="text-center px-3 py-2 w-20">數量</th>
+                        <th className="text-right px-3 py-2 w-24">小計</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {quoteSupplyItems.map((it, i) => (
+                        <tr key={i} className="border-b border-gray-100">
+                          <td className="px-3 py-2">{it.name}</td>
+                          <td className="text-center px-3 py-2">${it.unit_price.toLocaleString()}</td>
+                          <td className="text-center px-3 py-2">{it.quantity}</td>
+                          <td className="text-right px-3 py-2">${(it.unit_price * it.quantity).toLocaleString()}</td>
+                        </tr>
+                      ))}
+                      <tr className="bg-brand-50 font-bold">
+                        <td colSpan={3} className="text-right px-3 py-2">合計</td>
+                        <td className="text-right px-3 py-2 text-brand-600">${quoteTotal.toLocaleString()}</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </>
+            ) : (
+              <p className="text-sm text-gray-400 bg-gray-50 rounded-lg p-4 text-center">
+                報價單尚未填寫「包材費」項目，請至報價單編輯後再回到此處查看。
+              </p>
+            )}
+          </Section>
+        );
+      })()}
 
       {/* Part 6: 本次服務目標 */}
       <Section title="6. 本次服務目標" badge="一條龍項目" defaultOpen={false}>
