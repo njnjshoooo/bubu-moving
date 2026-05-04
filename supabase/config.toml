@@ -17,3 +17,6 @@ verify_jwt = false
 
 [functions.gcal-webhook]
 verify_jwt = false
+
+[functions.transcribe-recording]
+verify_jwt = false

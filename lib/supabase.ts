@@ -27,6 +27,7 @@ export const T = {
   settlementSheets:     'bubu_settlement_sheets',
   settlementItems:      'bubu_settlement_items',
   movingPlans:          'bubu_moving_plans',
+  quoteRecordings:      'bubu_quote_recordings',
 } as const;
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -397,4 +398,51 @@ export interface MovingPlanExecution {
 export interface MovingPlanReview {
   actual_summary?: string;
   gap_analysis?: string;
+}
+
+// ─── 報價錄音 ──────────────────────────────────────────────────────────────────
+export interface QuoteRecording {
+  id: string;
+  created_by_user_id: string | null;
+  consultant_id: string | null;
+  title: string;
+  customer_name: string | null;
+  phone: string | null;
+  audio_url: string | null;
+  audio_duration_sec: number | null;
+  audio_size_bytes: number | null;
+  status: 'recording' | 'uploaded' | 'transcribing' | 'transcribed' | 'extracting' | 'done' | 'failed' | 'converted';
+  transcript: string | null;
+  transcript_segments: { start: number; end: number; text: string }[] | null;
+  extracted_data: ExtractedQuoteData | null;
+  error_message: string | null;
+  quote_id: string | null;
+  converted_at: string | null;
+  archived_at: string | null;
+  archived_by_user_id: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+// AI 從逐字稿解析出的結構化資料
+export interface ExtractedQuoteData {
+  customer_name?: string;
+  phone?: string;
+  email?: string;
+  address_from?: string;
+  address_to?: string;
+  moving_date?: string;          // YYYY-MM-DD
+  arrival_time?: string;         // HH:MM
+  family_adults?: number;
+  family_kids?: number;
+  family_pets?: number;
+  old_elevator?: 'none' | 'has' | 'freight' | '';
+  new_elevator?: 'none' | 'has' | 'freight' | '';
+  large_furniture?: { name: string; qty: number }[];
+  large_appliances?: { name: string; qty: number }[];
+  service_packing?: boolean;
+  service_moving?: boolean;
+  service_unpacking?: boolean;
+  service_screening?: boolean;
+  notes?: string;                // 其他注意事項（從逐字稿摘錄）
 }

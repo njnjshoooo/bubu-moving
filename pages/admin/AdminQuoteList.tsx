@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Plus, Eye, Edit, Search, ClipboardList, Trash2, FileSignature } from 'lucide-react';
+import { Plus, Eye, Edit, Search, ClipboardList, Trash2, FileSignature, Mic } from 'lucide-react';
 import { supabase, Quote, Consultant, T } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import { useBasePath } from '../../lib/useBasePath';
@@ -81,9 +81,26 @@ export default function AdminQuoteList() {
           <h1 className="text-2xl font-bold text-gray-800">報價單管理</h1>
           <p className="text-sm text-gray-500 mt-1">共 {filtered.length} 份報價單</p>
         </div>
-        <Link to={`${basePath}/quotes/new`}
-          className="flex items-center gap-2 px-4 py-2 bg-brand-500 hover:bg-brand-600 text-white text-sm rounded-xl transition-all">
-          <Plus size={15} />新增報價單
+        <div className="flex gap-2 flex-wrap">
+          <Link to={`${basePath}/recordings/new`}
+            className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 text-sm rounded-xl transition-all">
+            <Mic size={15} />開始錄音
+          </Link>
+          <Link to={`${basePath}/quotes/new`}
+            className="flex items-center gap-2 px-4 py-2 bg-brand-500 hover:bg-brand-600 text-white text-sm rounded-xl transition-all">
+            <Plus size={15} />新增報價單
+          </Link>
+        </div>
+      </div>
+
+      {/* Tabs */}
+      <div className="flex gap-1 bg-gray-100 rounded-xl p-1 w-fit">
+        <span className="px-4 py-2 text-sm font-medium rounded-lg bg-white text-gray-800 shadow-sm">
+          報價單
+        </span>
+        <Link to={`${basePath}/recordings`}
+          className="px-4 py-2 text-sm font-medium rounded-lg text-gray-500 hover:text-gray-700 inline-flex items-center gap-1.5">
+          <Mic size={14} />報價錄音
         </Link>
       </div>
 

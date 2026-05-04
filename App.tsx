@@ -53,6 +53,9 @@ import AdminCaseStudies from './pages/admin/AdminCaseStudies';
 import SettlementSheet from './pages/admin/SettlementSheet';
 import MovingPlanBuilder from './pages/admin/MovingPlanBuilder';
 import MovingPlanView from './pages/admin/MovingPlanView';
+import QuoteRecordingsList from './pages/admin/QuoteRecordingsList';
+import QuoteRecordingNew from './pages/admin/QuoteRecordingNew';
+import QuoteRecordingDetail from './pages/admin/QuoteRecordingDetail';
 
 // Member extra pages
 import MemberQuotes from './pages/member/MemberQuotes';
@@ -165,6 +168,9 @@ function App() {
             <Route path="quotes/:quoteId/view" element={<QuoteView />} />
             <Route path="quotes/:quoteId/plan" element={<MovingPlanBuilder />} />
             <Route path="quotes/:quoteId/plan/view" element={<MovingPlanView />} />
+            <Route path="recordings" element={<QuoteRecordingsList />} />
+            <Route path="recordings/new" element={<QuoteRecordingNew />} />
+            <Route path="recordings/:recordingId" element={<QuoteRecordingDetail />} />
             <Route path="products" element={<AdminProducts />} />
             <Route path="orders" element={<AdminOrders />} />
             <Route path="cases" element={<AdminCaseStudies />} />
@@ -189,6 +195,9 @@ function App() {
             <Route path="quotes/:quoteId/view" element={<QuoteView />} />
             <Route path="quotes/:quoteId/plan" element={<MovingPlanBuilder />} />
             <Route path="quotes/:quoteId/plan/view" element={<MovingPlanView />} />
+            <Route path="recordings" element={<QuoteRecordingsList />} />
+            <Route path="recordings/new" element={<QuoteRecordingNew />} />
+            <Route path="recordings/:recordingId" element={<QuoteRecordingDetail />} />
             <Route path="settlement/:quoteId" element={<SettlementSheet />} />
           </Route>
 
