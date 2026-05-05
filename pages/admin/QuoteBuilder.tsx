@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate, useParams, Link } from 'react-router-dom';
 import { Plus, Trash2, ChevronDown, ChevronUp, Save, Eye, ArrowLeft, Users, CalendarDays, UserCircle, CheckSquare, Square, AlignLeft, MapPin } from 'lucide-react';
 import { supabase, NoteTemplate, T, MovingPlanEstimation } from '../../lib/supabase';
@@ -607,17 +608,21 @@ export default function QuoteBuilder() {
         </div>
       </div>
 
-      {/* Mobile sticky save bar */}
-      <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-4 py-3 flex gap-2 z-30 shadow-[0_-4px_8px_rgba(0,0,0,0.05)]">
-        <button onClick={() => handleSave(false)} disabled={saving}
-          className="flex-1 flex items-center justify-center gap-1.5 px-4 py-2.5 bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 text-sm rounded-xl transition-all disabled:opacity-60">
-          <Save size={15} />{saving ? '儲存中...' : '儲存'}
-        </button>
-        <button onClick={() => handleSave(true)} disabled={saving}
-          className="flex-1 flex items-center justify-center gap-1.5 px-4 py-2.5 bg-brand-500 hover:bg-brand-600 text-white text-sm rounded-xl transition-all disabled:opacity-60">
-          <Eye size={15} />預覽
-        </button>
-      </div>
+      {/* Mobile sticky save bar — 用 Portal 渲染到 body 避免被 AdminLayout 的 overflow 容器影響 */}
+      {createPortal(
+        <div className="lg:hidden fixed inset-x-0 bottom-0 bg-white border-t border-gray-200 px-4 py-3 flex gap-2 z-50 shadow-[0_-4px_8px_rgba(0,0,0,0.08)]"
+          style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 12px)' }}>
+          <button onClick={() => handleSave(false)} disabled={saving}
+            className="flex-1 flex items-center justify-center gap-1.5 px-4 py-2.5 bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 text-sm rounded-xl transition-all disabled:opacity-60">
+            <Save size={15} />{saving ? '儲存中...' : '儲存'}
+          </button>
+          <button onClick={() => handleSave(true)} disabled={saving}
+            className="flex-1 flex items-center justify-center gap-1.5 px-4 py-2.5 bg-brand-500 hover:bg-brand-600 text-white text-sm rounded-xl transition-all disabled:opacity-60">
+            <Eye size={15} />預覽
+          </button>
+        </div>,
+        document.body
+      )}
 
       {/* ── Consultant Bar ── */}
       <div className="bg-white rounded-2xl border border-brand-100 px-5 py-3 flex items-center gap-4 flex-wrap">

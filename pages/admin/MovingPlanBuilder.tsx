@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate, useParams, Link } from 'react-router-dom';
 import {
   ArrowLeft, Save, Plus, Trash2, Printer,
@@ -665,17 +666,21 @@ export default function MovingPlanBuilder() {
         </Field>
       </Section>
 
-      {/* 手機版底部固定按鈕（桌面版使用標題右側按鈕）*/}
-      <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-4 py-3 flex gap-2 z-30 shadow-[0_-4px_8px_rgba(0,0,0,0.05)]">
-        <Link to={`${basePath}/quotes/${quoteId}/plan/view`}
-          className="flex-1 flex items-center justify-center gap-1.5 px-4 py-2.5 border border-gray-200 text-gray-700 text-sm rounded-xl">
-          <Printer size={15} />預覽
-        </Link>
-        <button onClick={save} disabled={saving}
-          className="flex-1 flex items-center justify-center gap-1.5 px-4 py-2.5 bg-brand-500 hover:bg-brand-600 text-white text-sm rounded-xl disabled:opacity-60">
-          <Save size={15} />{saving ? '儲存中...' : '儲存'}
-        </button>
-      </div>
+      {/* 手機版底部固定按鈕 — Portal 到 body 避免被 AdminLayout overflow 容器影響 */}
+      {createPortal(
+        <div className="lg:hidden fixed inset-x-0 bottom-0 bg-white border-t border-gray-200 px-4 py-3 flex gap-2 z-50 shadow-[0_-4px_8px_rgba(0,0,0,0.08)]"
+          style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 12px)' }}>
+          <Link to={`${basePath}/quotes/${quoteId}/plan/view`}
+            className="flex-1 flex items-center justify-center gap-1.5 px-4 py-2.5 border border-gray-200 text-gray-700 text-sm rounded-xl">
+            <Printer size={15} />預覽
+          </Link>
+          <button onClick={save} disabled={saving}
+            className="flex-1 flex items-center justify-center gap-1.5 px-4 py-2.5 bg-brand-500 hover:bg-brand-600 text-white text-sm rounded-xl disabled:opacity-60">
+            <Save size={15} />{saving ? '儲存中...' : '儲存'}
+          </button>
+        </div>,
+        document.body
+      )}
     </div>
   );
 }
