@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, FileText, Loader2, RefreshCw, AlertCircle, CheckCircle2, Wand2, Pencil, Save, X } from 'lucide-react';
+import { ArrowLeft, FileText, Loader2, RefreshCw, AlertCircle, CheckCircle2, Wand2, Pencil, Save, X, FileSpreadsheet } from 'lucide-react';
 import { supabase, QuoteRecording, T } from '../../lib/supabase';
 import { useBasePath } from '../../lib/useBasePath';
 
@@ -349,10 +349,16 @@ export default function QuoteRecordingDetail() {
           </button>
         )}
         {rec.quote_id && (
-          <Link to={`${basePath}/quotes/${rec.quote_id}`}
-            className="flex items-center gap-1.5 px-4 py-2 bg-purple-50 border border-purple-200 hover:bg-purple-100 text-purple-700 text-sm rounded-xl">
-            <FileText size={15} />已連結報價單
-          </Link>
+          <>
+            <Link to={`${basePath}/quotes/${rec.quote_id}`}
+              className="flex items-center gap-1.5 px-4 py-2 bg-purple-50 border border-purple-200 hover:bg-purple-100 text-purple-700 text-sm rounded-xl">
+              <FileText size={15} />已連結報價單
+            </Link>
+            <Link to={`${basePath}/test-quotes/${rec.quote_id}`}
+              className="flex items-center gap-1.5 px-4 py-2 bg-amber-50 border border-amber-200 hover:bg-amber-100 text-amber-700 text-sm rounded-xl">
+              <FileSpreadsheet size={15} />開啟測試報價單
+            </Link>
+          </>
         )}
       </div>
 
