@@ -3,7 +3,7 @@ import { Outlet, NavLink, useNavigate } from 'react-router-dom';
 import {
   Truck, LayoutDashboard, Calendar, ClipboardList,
   FileText, LogOut, Menu, ChevronRight, Users, Settings,
-  Package, ShoppingBag, Camera
+  Package, ShoppingBag, Camera, FileSpreadsheet
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 
@@ -12,6 +12,7 @@ const navItems = [
   { to: '/admin/calendar', label: '行事曆管理', icon: Calendar, adminOnly: false },
   { to: '/admin/bookings', label: '預約單管理', icon: ClipboardList, adminOnly: false },
   { to: '/admin/quotes', label: '報價單', icon: FileText, adminOnly: false },
+  { to: '/admin/test-quotes', label: '測試報價單', icon: FileSpreadsheet, adminOnly: false },
   { to: '/admin/products', label: '商品管理', icon: Package, adminOnly: false },
   { to: '/admin/orders', label: '訂購單', icon: ShoppingBag, adminOnly: false },
   { to: '/admin/cases', label: '案例分享管理', icon: Camera, adminOnly: false },

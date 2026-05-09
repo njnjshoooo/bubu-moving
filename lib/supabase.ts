@@ -28,6 +28,7 @@ export const T = {
   settlementItems:      'bubu_settlement_items',
   movingPlans:          'bubu_moving_plans',
   quoteRecordings:      'bubu_quote_recordings',
+  testQuotes:           'bubu_test_quotes',
 } as const;
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -420,6 +421,40 @@ export interface QuoteRecording {
   converted_at: string | null;
   archived_at: string | null;
   archived_by_user_id: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+// ─── 測試報價單（整合 quote + plan + recording 的統一視圖）─────────────────
+export interface TestQuoteFeeItem {
+  name: string;        // 大紙箱 / 整聊師 / 搬家車...
+  qty: number;         // 數量或人數
+  unit?: string;       // 個 / 位 / 趟 / 小時
+  hours?: number;      // （人員類）小時數
+  unit_price?: number;
+  subtotal?: number;
+  note?: string;
+}
+
+export interface TestQuoteFeeCategories {
+  packing: TestQuoteFeeItem[];   // 包材類
+  staff:   TestQuoteFeeItem[];   // 人員類（整聊師、搬運工）
+  moving:  TestQuoteFeeItem[];   // 搬運類（車趟、組裝、包膜）
+  other:   TestQuoteFeeItem[];   // 其他
+}
+
+export interface TestQuote {
+  id: string;
+  quote_id: string;
+  fee_categories: TestQuoteFeeCategories;
+  old_basement_height: string | null;
+  new_basement_height: string | null;
+  old_temp_parking: string | null;
+  new_temp_parking: string | null;
+  items_not_to_move: { name: string; reason?: string }[];
+  special_protection: { name: string; method?: string }[];
+  customer_concerns: string[];
+  internal_notes: string | null;
   created_at: string;
   updated_at: string;
 }
