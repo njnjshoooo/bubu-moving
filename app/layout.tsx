@@ -12,7 +12,7 @@ export const dynamic = "force-dynamic";
 export const viewport: Viewport = {width:'device-width',initialScale:1,viewportFit:'cover'};
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://bubu-moving.vercel.app"),
+  metadataBase: new URL("https://www.bubu-moving.com.tw"),
   title: "步步搬家｜一條龍精緻搬家",
   description: "步步搬家，整合搬運、打包整理、包材配送與搬後清潔。一個窗口，陪你安頓每一步。",
   icons: {
