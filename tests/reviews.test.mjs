@@ -1,10 +1,4 @@
-import {createRequire} from 'node:module';import {readFileSync,readdirSync} from 'node:fs';import {pathToFileURL} from 'node:url';import {DatabaseSync} from 'node:sqlite';import assert from 'node:assert/strict';
-const root=new URL('../',import.meta.url).pathname,require=createRequire(root+'package.json'),ts=require('typescript');
-const db=new DatabaseSync(':memory:');for(const f of readdirSync(root+'drizzle').filter(f=>f.endsWith('.sql')))db.exec(readFileSync(root+'drizzle/'+f,'utf8'));
-class Stmt{constructor(sql,args=[]){this.sql=sql;this.args=args}bind(...args){return new Stmt(this.sql,args)}async first(){return db.prepare(this.sql).get(...this.args)||null}async all(){return {results:db.prepare(this.sql).all(...this.args)}}async run(){const r=db.prepare(this.sql).run(...this.args);return {meta:{changes:Number(r.changes)}}}}
-globalThis.testEnv={BUBU_ADMIN_EMAILS:'admin@test.invalid',DB:{prepare:sql=>new Stmt(sql),batch:async statements=>{db.exec('BEGIN');try{const result=[];for(const s of statements)result.push(/^SELECT/i.test(s.sql)?await s.all():await s.run());db.exec('COMMIT');return result}catch(e){db.exec('ROLLBACK');throw e}}}};
-globalThis.testUser={userId:'test-admin',email:'admin@test.invalid'};
-const cache={};function module(file){if(cache[file])return cache[file];let source=readFileSync(root+file,'utf8');if(file==='lib/server.ts')source=source.replace("import {env} from 'cloudflare:workers';",'const env=globalThis.testEnv;').replace("import {getChatGPTUser} from '@/app/chatgpt-auth';",'const getChatGPTUser=async()=>globalThis.testUser;');source=source.replace(/from ['"]([^'"]+)['"]/g,(full,name)=>{if(name==='zod')return 'from '+JSON.stringify(pathToFileURL(require.resolve('zod')).href);if(name.startsWith('@/'))return 'from '+JSON.stringify(module(name.slice(2)+'.ts'));if(name.startsWith('./'))return 'from '+JSON.stringify(module('lib/'+name.slice(2)+'.ts'));return full});const js=ts.transpileModule(source,{compilerOptions:{module:ts.ModuleKind.ESNext,target:ts.ScriptTarget.ES2022}}).outputText;return cache[file]='data:text/javascript;base64,'+Buffer.from(js).toString('base64')}
+import assert from 'node:assert/strict';import {module,db} from './pg-harness.mjs';
 const reviews=await import(module('app/api/admin/reviews/route.ts'));
 const req=data=>new Request('https://test.invalid/api/admin/reviews',{method:'POST',headers:{origin:'https://test.invalid'},body:JSON.stringify(data)});
 const item={id:crypto.randomUUID(),version:0,name:'測試客戶',service:'一條龍搬家',date:'2026-01-01',text:'這是一筆僅供測試的回饋。',source:'服務問卷',sourceUrl:'',rating:5,verified:false,consent:false,published:false,sortOrder:10};
@@ -14,12 +8,12 @@ assert.equal((await reviews.POST(req({...item,published:true}))).status,422);
 assert.equal((await reviews.POST(req({...item,date:'2026-02-30'}))).status,422);
 assert.equal((await reviews.POST(req({...item,sourceUrl:'javascript:alert(1)'}))).status,422);
 assert.equal((await reviews.POST(req(item))).status,200);
-assert.equal(db.prepare('SELECT count(*) n FROM customer_reviews WHERE published=1').get().n,0);
+assert.equal((await db.prepare('SELECT count(*) n FROM customer_reviews WHERE published=1').bind().first()).n,0);
 assert.equal((await reviews.POST(req({...item,version:1,published:true,verified:true,consent:true}))).status,200);
-assert.equal(db.prepare('SELECT count(*) n FROM customer_reviews WHERE published=1').get().n,1);
+assert.equal((await db.prepare('SELECT count(*) n FROM customer_reviews WHERE published=1').bind().first()).n,1);
 assert.equal((await reviews.POST(req({...item,version:1}))).status,409);
 assert.equal((await reviews.POST(req({...item,version:2}))).status,200);
-assert.equal(db.prepare('SELECT count(*) n FROM customer_reviews WHERE published=1').get().n,0);
+assert.equal((await db.prepare('SELECT count(*) n FROM customer_reviews WHERE published=1').bind().first()).n,0);
 const users=await import(module('app/api/admin/staff/route.ts'));
 for(const role of ['sales','editor'])assert.equal((await users.POST(req({email:role+'@test.invalid',name:role,role,active:true,version:0}))).status,200);
 globalThis.testUser={userId:'sales',email:'sales@test.invalid'};assert.equal((await reviews.GET()).status,403);assert.equal((await reviews.POST(req(item))).status,403);

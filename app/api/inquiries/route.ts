@@ -13,7 +13,7 @@ export async function POST(req:Request){
  const existing=await db.prepare('SELECT id,payload_hash FROM inquiries WHERE request_key=?').bind(data.requestKey).first<{id:string,payload_hash:string}>();
  if(existing)return existing.payload_hash===payloadHash?json({id:existing.id,status:'待聯繫'}):json({error:'送出內容已變更，請重新整理後再試。'},409);
  const catalog=await readCatalog();if(data.services.some(code=>code.startsWith('S')&&!catalog.some(p=>p.id===code&&p.active)))return json({error:'部分服務已暫停受理，請重新選擇。'},422);if(data.materialItems?.length&&!data.services.includes('S03'))return json({error:'包材清單須搭配包材服務。'},422);
- const fingerprint=await hash(req.headers.get('cf-connecting-ip')||data.phone);const since=new Date(Date.now()-3600000).toISOString();
+ const fingerprint=await hash(req.headers.get('x-real-ip')||req.headers.get('x-forwarded-for')?.split(',')[0]?.trim()||data.phone);const since=new Date(Date.now()-3600000).toISOString();
  const count=await db.prepare('SELECT COUNT(*) AS n FROM inquiries WHERE request_fingerprint=? AND created_at>?').bind(fingerprint,since).first<{n:number}>();
  if(count&&count.n>=8)return json({error:'已收到多筆需求，請稍後再試。'},429);
  const id='BU-'+crypto.randomUUID().slice(0,8).toUpperCase();const now=new Date().toISOString();const user=await getChatGPTUser();

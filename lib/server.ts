@@ -1,7 +1,7 @@
-import {env} from 'cloudflare:workers';
+import {database as pg} from '@/lib/pg-d1';
 import {getChatGPTUser} from '@/app/chatgpt-auth';
-export function database(){if(!env.DB)throw new Error('DATABASE_UNAVAILABLE');return env.DB;}
-export function config(name:string){return (env as unknown as Record<string,string|undefined>)[name]||process.env[name]||'';}
+export function database(){return pg;}
+export function config(name:string){return process.env[name]||'';}
 export type Role='owner'|'admin'|'sales'|'editor';
 export type Permission='leads'|'quotes'|'content'|'catalog'|'users'|'dispatch'|'overview';
 export const permissions:Record<Role,Permission[]>={owner:['leads','quotes','content','catalog','users','dispatch','overview'],admin:['leads','quotes','content','catalog','users','dispatch','overview'],sales:['leads','quotes','overview'],editor:['content','overview']};

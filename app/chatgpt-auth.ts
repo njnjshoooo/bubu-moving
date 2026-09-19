@@ -1,4 +1,3 @@
-import { env } from "cloudflare:workers";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
@@ -17,11 +16,7 @@ const SIGN_IN_PATH = "/admin/login";
 const SIGN_OUT_PATH = "/api/auth/logout";
 
 function secret(name: string): string {
-  return (
-    (env as unknown as Record<string, string | undefined>)[name] ||
-    process.env[name] ||
-    ""
-  );
+  return process.env[name] || "";
 }
 
 function b64url(bytes: Uint8Array): string {
