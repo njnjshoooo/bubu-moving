@@ -77,7 +77,14 @@ class Statement {
   async exec(executor?: Executor, previousChanges = 0): Promise<D1Result> {
     await ensureSchema();
     const run = (executor ?? sql()) as unknown as Executor;
-    const rows = await run.unsafe(translate(this.query, previousChanges), this.values as never[]);
+    let rows;
+    try {
+      rows = await run.unsafe(translate(this.query, previousChanges), this.values as never[]);
+    } catch (e) {
+      const err = e as {code?: string; message?: string};
+      console.error('Query failed:', err.code ?? '', err.message ?? '', '|', this.query.slice(0, 120));
+      throw e;
+    }
     return {results: [...rows], success: true, meta: {changes: rows.count ?? 0}};
   }
   async all<T = Record<string, unknown>>() {return (await this.exec()) as D1Result<T>;}
