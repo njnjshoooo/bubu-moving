@@ -59,7 +59,12 @@ async function ensureSchema() {
         await tx.unsafe(`INSERT INTO ${SCHEMA}.schema_migrations(version) VALUES ($1)`, [m.version]);
       }
     });
-  })().catch(e => {ready = null; throw e;});
+  })().catch(e => {
+    ready = null;
+    const err = e as {code?: string; message?: string};
+    console.error('Database unavailable:', err.code ?? '', (err.message ?? '').replace(/postgres(ql)?:\/\/\S+/g, '<url>'));
+    throw e;
+  });
   return ready;
 }
 
