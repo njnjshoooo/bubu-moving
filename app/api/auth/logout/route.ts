@@ -1,0 +1,2 @@
+import {safeRelativeReturnPath,SESSION_COOKIE} from '@/app/chatgpt-auth';
+export async function GET(req:Request){const returnTo=safeRelativeReturnPath(new URL(req.url).searchParams.get('return_to')||'/admin/login');return new Response(null,{status:303,headers:{Location:new URL(returnTo,req.url).toString(),'Cache-Control':'no-store','Set-Cookie':`${SESSION_COOKIE}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0`}});}

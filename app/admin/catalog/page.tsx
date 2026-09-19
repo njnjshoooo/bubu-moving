@@ -1,0 +1,1 @@
+import {AdminAccess} from '@/components/admin-access';import Editor from './editor';export const dynamic='force-dynamic';export default function Page(){return <AdminAccess section="catalog"><h1>商品與服務</h1><p>管理包材價格、規格與上下架，維護業務報價使用的標準品項。已開立報價保留當時價格。</p><Editor/></AdminAccess>}

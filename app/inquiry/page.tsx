@@ -1,0 +1,3 @@
+import {CatalogPrice} from '@/components/catalog-price';
+import InquiryForm from './form';import {SiteHeader,SiteFooter} from '@/components/site-header';export const metadata={title:'預約免費估價｜步步搬家',robots:{index:false,follow:true}};
+export default function Inquiry(){return <><SiteHeader/><main className="booking-page wrap"><aside><span className="kicker">LET’S GET MOVING</span><h1>你的下一站，<br/>我們一起準備。</h1><p>先留下服務、地區與聯絡方式。<br/>其他細節，客服和你一起確認。</p><div className="booking-price"><span>一條龍方案內搬運費</span><strong>NT$<CatalogPrice code="S01"/> <small>／車起</small></strong><span>整理服務</span><strong>NT$<CatalogPrice code="S02"/> <small>／人</small></strong><small>搬運、打包、包材分項報價；不承接純搬運。</small></div></aside><InquiryForm/></main><SiteFooter/></>}

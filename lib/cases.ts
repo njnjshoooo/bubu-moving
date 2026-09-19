@@ -1,0 +1,7 @@
+import {z} from 'zod';
+export const caseCategories=['家庭搬家','打包整理','搬後清潔','企業服務'] as const;
+const photo=z.string().max(1500).refine(v=>!v||/^\/api\/media\/[a-f0-9-]{36}$/.test(v)||(()=>{try{const u=new URL(v);return u.protocol==='https:'&&!u.username&&!u.password&&!['localhost','127.0.0.1','[::1]'].includes(u.hostname)}catch{return false}})(),'照片請填寫有效的 HTTPS 網址');
+export const caseSchema=z.object({id:z.string().uuid(),version:z.number().int().nonnegative(),title:z.string().trim().min(2).max(90),category:z.enum(caseCategories),area:z.string().trim().max(80),month:z.string().regex(/^$|^\d{4}-(0[1-9]|1[0-2])$/),summary:z.string().trim().max(250),challenge:z.string().trim().max(3000),approach:z.string().trim().max(4000),result:z.string().trim().max(3000),image:photo,imageAlt:z.string().max(150),quote:z.string().trim().max(600),consent:z.boolean(),published:z.boolean()}).superRefine((v,c)=>{if(v.published&&(!v.consent||!v.area||!v.month||!v.summary||!v.challenge||!v.approach||!v.result||(v.image&&!v.imageAlt)))c.addIssue({code:'custom',message:'發布前請填妥區域、年月、摘要、需求難點、處理方式、成果與照片說明，並確認公開授權。'});if(v.month&&v.month>new Date().toISOString().slice(0,7))c.addIssue({code:'custom',message:'完成年月不可晚於本月。'});});
+export type CaseStudy=z.infer<typeof caseSchema>;
+export type CaseRow={id:string;content:string;published:number;version:number;updated_at:string};
+export function decodeCase(row:CaseRow):CaseStudy{return {...JSON.parse(row.content),id:row.id,version:row.version,published:row.published===1}}

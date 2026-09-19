@@ -1,0 +1,15 @@
+'use client';
+import {ManagedImage} from '@/components/managed-image';
+
+import {useState} from 'react';
+import {ArrowUpRight,Minus,Plus} from 'lucide-react';
+import {useProducts} from '@/components/catalog-provider';
+export default function MaterialsCatalog(){
+ const materials=useProducts().filter(p=>p.kind==='material'&&p.active).map(p=>({...p,id:p.id.replace(/^material-/,''),price:p.price??0}));
+ const [category,setCategory]=useState('全部');
+ const [quantities,setQuantities]=useState<Record<string,number>>({});
+ const chosen=materials.filter(p=>(quantities[p.id]||0)>0);
+ const total=chosen.reduce((sum,p)=>sum+p.price*quantities[p.id],0);const basket=chosen.map(p=>({id:p.id,quantity:quantities[p.id]}));const request=chosen.map(p=>`${p.name}：${quantities[p.id]} ${p.unit} × NT$${p.price} = NT$${p.price*quantities[p.id]}`).join('\n');
+ function change(id:string,n:number){setQuantities(q=>({...q,[id]:Math.max(0,Math.min(999,Math.trunc(n)||0))}));}
+ return <section id="catalog" className="materials-catalog"><div className="section-heading"><div><span className="kicker">PACK WITH PURPOSE</span><h2>選對包材，打包更有把握。</h2></div><p>先選品項與數量，<br/>費用整合在步步報價單。</p></div><div className="material-filters" role="group" aria-label="包材分類">{['全部','裝箱','防護','封箱'].map(c=><button key={c} aria-pressed={category===c} onClick={()=>setCategory(c)}>{c}</button>)}</div><div className="material-grid">{materials.filter(p=>category==='全部'||p.category===category).map(p=><article key={p.id}><div className="material-photo"><ManagedImage src={p.image} alt={p.name+'｜AI 商品示意'} loading="lazy" width="600" height="600"/><span>{p.category}</span></div><div className="material-copy"><h3>{p.name}</h3><small>{p.spec}</small><p>{p.description}</p><div className="material-price">NT$ {p.price.toLocaleString()} <small>／{p.unit}</small></div><div className="material-quantity"><span>詢價數量／{p.unit}</span><div><button type="button" aria-label={`減少${p.name}`} disabled={!quantities[p.id]} onClick={()=>change(p.id,(quantities[p.id]||0)-1)}><Minus size={15}/></button><input aria-label={`${p.name}數量`} type="number" min="0" max="999" value={quantities[p.id]||0} onChange={e=>change(p.id,Number(e.target.value))}/><button type="button" aria-label={`增加${p.name}`} disabled={quantities[p.id]===999} onClick={()=>change(p.id,(quantities[p.id]||0)+1)}><Plus size={15}/></button></div></div></div></article>)}</div><div className="material-request"><div aria-live="polite"><strong>{chosen.length?`包材小計 NT$ ${total.toLocaleString()}`:'不確定需要多少？也可以請我們協助。'}</strong><p>{chosen.length?chosen.map(p=>`${p.name} × ${quantities[p.id]}`).join('、'):'提供物品量與搬家日期，一起搭配合適的包材。'}</p></div><a className="primary" href={'/inquiry?service=S03'+(request?'&materials='+encodeURIComponent(request)+'&basket='+encodeURIComponent(JSON.stringify(basket)):'')}>{chosen.length?'帶入清單詢價':'諮詢包材需求'} <ArrowUpRight size={18}/></a></div><p className="section-note">包材依標示單價與實際數量計算，小計未含配送及其他服務費。搬家、打包、包材與寄倉可整合為一張步步報價單，統一向步步付款；最終金額與供貨日期於報價單確認。圖片為 AI 商品示意。</p></section>
+}

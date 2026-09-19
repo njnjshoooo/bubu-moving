@@ -1,0 +1,7 @@
+import {MessageCircle,Boxes,ClipboardCheck,CalendarCheck,Truck,House,Package,Users,Sparkles,Building2,ShieldCheck,MapPin,Check,Handshake} from 'lucide-react';
+const icons={chat:MessageCircle,boxes:Boxes,quote:ClipboardCheck,calendar:CalendarCheck,truck:Truck,home:House,package:Package,people:Users,clean:Sparkles,building:Building2,shield:ShieldCheck,pin:MapPin,check:Check,handshake:Handshake};
+export type VisualKind=keyof typeof icons;
+export function VisualIcon({kind}:{kind:VisualKind}){const Icon=icons[kind];return <div className={'visual-icon visual-'+kind} aria-hidden="true"><span/><Icon strokeWidth={1.6}/></div>}
+export const simpleSteps:[VisualKind,string,string][]=[['chat','提出需求','日期、地點、要搬什麼'],['boxes','盤點物品','確認箱數、家具與動線'],['quote','確認報價','服務與費用逐項說清楚'],['calendar','安排時間','協調車輛、人力與進場'],['truck','搬運到家','核對物品、保護與搬運'],['home','完成核對','確認到位，留下待辦紀錄']];
+export function VisualSteps({compact=false}:{compact?:boolean}){return <ol className={'visual-steps '+(compact?'compact':'')}>{simpleSteps.map(([icon,t,d],i)=><li key={t}><VisualIcon kind={icon}/><span className="step-index">0{i+1}</span><h3>{t}</h3><p>{d}</p></li>)}</ol>}
+export function MoveSequence(){return <div className="move-sequence">{([['package','搬前整理'],['clean','新家清潔'],['truck','搬運到家'],['clean','舊家清潔']] as [VisualKind,string][]).map(([kind,t],i)=><div key={t}><VisualIcon kind={kind}/><h3>{t}</h3><small>{i===0||i===1||i===3?'依需要加選':'依報價安排'}</small></div>)}</div>}

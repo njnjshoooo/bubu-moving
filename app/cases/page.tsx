@@ -1,0 +1,3 @@
+import {HeritageCases} from '@/components/heritage-cases';
+import {CustomerPage} from '@/components/customer-layout';import {publishedCases} from '@/lib/case-data';import CaseGallery from './gallery';export const dynamic='force-dynamic';export const metadata={title:'服務案例｜步步搬家',description:'經客戶授權的搬家需求、處理方式與交付紀錄。'};
+export default async function Cases(){const {cases,unavailable}=await publishedCases();return <CustomerPage label="MOVING STORIES" title="每一次搬家，都有自己的故事。" intro="延續居家整聊的一條龍搬家服務，分享從打包到新家上架的真實紀錄。"><HeritageCases/>{cases.length>0&&<CaseGallery cases={cases} unavailable={unavailable}/>}</CustomerPage>}

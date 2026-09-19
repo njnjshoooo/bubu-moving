@@ -1,0 +1,6 @@
+import {services} from './services';
+import {database} from './server';
+import {seedProducts,type Product} from './catalog';
+export async function readCatalog(){const {results}=await database().prepare('SELECT id,content,version FROM catalog_items').all<{id:string;content:string;version:number}>();const all=new Map(seedProducts.map(p=>[p.id,{...p,version:0}]));for(const r of results)all.set(r.id,{...JSON.parse(r.content),version:r.version});return [...all.values()] as (Product&{version:number})[]}
+export async function materialSnapshot(input:{id:string;quantity:number}[]){const catalog=await readCatalog();return input.map(x=>{const p=catalog.find(p=>p.id==='material-'+x.id&&p.active&&p.kind==='material');if(!p||p.price===null)throw new Error('包材已下架或價格待確認，請重新選擇');return {materialId:x.id,name:p.name,spec:p.spec,unit:p.unit,quantity:x.quantity,unitPrice:p.price,category:'包材' as const}})}
+export async function readServices(){const catalog=await readCatalog();return services.flatMap(s=>{const p=catalog.find(p=>p.id===s.code);if(!p?.active)return [];return [{...s,title:p.name,intro:p.description,image:p.image.replace(/^\//,''),price:p.price===null?p.spec:`${p.category==='搬運'?'搬運費':''}每${p.unit} NT$${p.price.toLocaleString()}${s.code==='S01'?' 起；打包與包材另計':''}`} ]})}

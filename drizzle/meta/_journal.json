@@ -1,0 +1,55 @@
+{
+  "version": "7",
+  "dialect": "sqlite",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "6",
+      "when": 1789721790861,
+      "tag": "0000_square_shiva",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1789722539329,
+      "tag": "0001_cultured_red_shift",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1789797886152,
+      "tag": "0002_colorful_lily_hollister",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1789798323075,
+      "tag": "0003_wet_scrambler",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1789799168131,
+      "tag": "0004_grey_argent",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1789799541601,
+      "tag": "0005_amusing_flatman",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1789799831192,
+      "tag": "0006_mature_randall_flagg",
+      "breakpoints": true
+    }
+  ]
+}

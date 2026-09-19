@@ -1,0 +1,1 @@
+import {AdminAccess} from '@/components/admin-access';import Users from './users';export const dynamic='force-dynamic';export default function Page(){return <AdminAccess section="users"><h1>帳號與權限</h1><p>依工作分工授權；停用後，下次請求即無法讀取後台資料。</p><Users/></AdminAccess>}

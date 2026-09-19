@@ -1,0 +1,6 @@
+import {ManagedImage} from '@/components/managed-image';
+import {CustomerPage} from '@/components/customer-layout';
+import {ArrowUpRight} from 'lucide-react';
+import MaterialsCatalog from './catalog';
+export const metadata={title:'搬家包材｜紙箱・緩衝防護・封箱用品｜步步搬家',description:'搬家常用紙箱、掛衣箱、氣泡布與封箱用品。選擇包材與數量，交由步步確認規格、費用及配送安排。'};
+export default function Page(){return <CustomerPage label="BU BU PACKING ESSENTIALS" title="每一件在乎，都好好包住。" intro="從日常小物到陪你搬家的家具，選對紙箱、緩衝與固定材料，讓下一站的開箱更從容。" cta={false}><section className="product-spotlight"><figure><ManagedImage src="/images/materials-hero.png" alt="搬家紙箱、掛衣箱、氣泡布與封箱用品的搭配示意" width="1536" height="1024" fetchPriority="high"/><figcaption>AI 包材搭配示意；商品規格以品項資料為準</figcaption></figure><div><span className="kicker">BOX · PROTECT · SEAL</span><h2>裝箱、防護、封箱。<br/>一次準備剛剛好。</h2><p>依物品挑選常用包材，按實際需求確認數量。包材費與打包服務費分開列明。</p><a className="primary" href="#catalog">挑選搬家包材 <ArrowUpRight size={18}/></a><a className="editorial-link" href="/inquiry?service=S01,S03">搭配一條龍搬家 ↗</a></div></section><MaterialsCatalog/><section className="product-steps"><div><span>01 / 選材</span><h3>選品項與數量</h3><p>不確定規格，也能直接留下物品需求。</p></div><div><span>02 / 確認</span><h3>核對費用與交期</h3><p>包材明細、配送方式與費用一起確認。</p></div><div><span>03 / 準備</span><h3>配合搬家時程安排</h3><p>依確認的到貨時間，從容開始整理打包。</p></div></section></CustomerPage>}

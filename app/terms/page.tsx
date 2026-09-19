@@ -1,0 +1,4 @@
+import {CatalogPrice} from '@/components/catalog-price';
+import {SiteHeader,SiteFooter} from '@/components/site-header';
+export const metadata={title:'服務與報價說明｜步步搬家'};
+export default function Terms(){return <><SiteHeader/><main className="page-shell"><a href="/">← 回首頁</a><h1>服務與報價說明</h1><section className="form-panel"><h2>詢價與正式預約</h2><p>網站表單用於蒐集服務需求。收到詢價編號代表資料已送達，不代表報價已確認、車輛已保留或訂單已成立。</p><h2>搬家每車 NT$<CatalogPrice code="S01"/> 起</h2><p>正式價格依車型、車次、物品、樓層、電梯、距離與搬運動線評估。人力、保護、包材與其他項目以正式分項報價為準。</p><h2>整理服務每人 NT$<CatalogPrice code="S02"/></h2><p>服務時長、所需人數、工作範圍與包材費用會在報價前確認。網站不預設此金額包含無限工時或所有整理工作。</p><h2>日期、異動與款項</h2><p>日期須經營運確認可服務範圍與團隊產能。付款、訂金、稅別、改期、取消及退款條件，於正式報價或契約中揭露後再由雙方確認。網站不會自動扣款。</p><h2>清運與特殊需求</h2><p>清運需求須先確認品項、來源及合作方承接條件；特殊搬運與清潔另行評估。若服務條件變動，先確認變更項目與費用，再安排作業。</p></section></main><SiteFooter/></>}

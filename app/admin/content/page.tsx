@@ -1,0 +1,1 @@
+import {AdminAccess} from '@/components/admin-access';import Editor from './editor';export const dynamic='force-dynamic';export default function Page(){return <AdminAccess section="content"><h1>文章與最新資訊</h1><p>管理搬家知識與品牌消息。草稿與公開版本分開，儲存草稿不會覆蓋目前官網內容。</p><Editor/></AdminAccess>}

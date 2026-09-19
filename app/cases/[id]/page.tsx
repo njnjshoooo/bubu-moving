@@ -1,0 +1,8 @@
+import {ManagedImage} from '@/components/managed-image';
+import {notFound} from 'next/navigation';
+import {database} from '@/lib/server';
+import {decodeCase,type CaseRow} from '@/lib/cases';
+import {SiteHeader,SiteFooter} from '@/components/site-header';
+export const dynamic='force-dynamic';
+export const metadata={title:'服務紀錄｜步步搬家'};
+export default async function CaseDetail({params}:{params:Promise<{id:string}>}){const {id}=await params;if(!/^[a-f0-9-]{36}$/.test(id))notFound();let row:CaseRow|null;try{row=await database().prepare('SELECT id,content,published,version,updated_at FROM case_studies WHERE id=? AND published=1').bind(id).first<CaseRow>()}catch{return <><SiteHeader/><main className="page-shell"><h1>案例暫時無法載入</h1><p>請稍後重試。</p><a href="/cases">返回服務案例</a></main><SiteFooter/></>}if(!row)notFound();const c=decodeCase(row);return <><SiteHeader/><main className="case-article"><div className="wrap"><a href="/cases" className="text-link">← 所有服務案例</a><div className="case-meta"><span>{c.category}</span><span>{c.area} · {c.month}</span></div><h1>{c.title}</h1><p className="article-lead">{c.summary}</p>{c.image&&<figure><ManagedImage src={c.image} alt={c.imageAlt} referrerPolicy="no-referrer"/><figcaption>{c.imageAlt}</figcaption></figure>}<div className="case-narrative">{[['01','需求與難點',c.challenge],['02','我們的處理方式',c.approach],['03','交付與成果',c.result]].map(([n,t,d])=><section key={n}><span>{n}</span><div><h2>{t}</h2><p>{d}</p></div></section>)}</div>{c.quote&&<blockquote><span>客戶分享</span><p>「{c.quote}」</p></blockquote>}<div className="article-end"><p>你的物品與搬運條件不同，服務內容與費用會依需求另行評估。</p><a className="primary" href="/inquiry">安排我的搬家估價 ↗</a></div></div></main><SiteFooter/></>}

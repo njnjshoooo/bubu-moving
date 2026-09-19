@@ -1,0 +1,1 @@
+import {AdminAccess} from '@/components/admin-access';import Editor from './editor';export const dynamic='force-dynamic';export const metadata={title:'客戶五星評價｜步步營運管理',robots:{index:false,follow:false}};export default function Page(){return <AdminAccess section="reviews"><h1>客戶五星評價</h1><p>整理真實客戶回饋，確認來源與公開授權後發布。首頁與關於步步會顯示排序最前的 6 則。</p><Editor/></AdminAccess>}

@@ -1,0 +1,1 @@
+import {AdminAccess} from '@/components/admin-access';import Queue from './queue';export const dynamic='force-dynamic';export default function Page(){return <AdminAccess section="dispatch"><h1>主訂單系統串接</h1><p>把客戶已確認的報價整理成固定格式，追蹤傳送狀態與主系統訂單編號。</p><Queue/></AdminAccess>}
