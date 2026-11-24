@@ -26,4 +26,22 @@
  .review-heading h2{font-size:26px}.reviews-empty a{min-height:44px;display:inline-flex;align-items:center}.review-source a{min-height:44px;display:inline-flex;align-items:center}
 }
 @media(max-width:360px){.brand-nav{padding-left:14px;padding-right:14px;gap:8px}.brand-nav .logo{width:98px}.header-book{font-size:12px;padding:8px}.wrap{padding-left:16px;padding-right:16px}.mobile-menu-dialog{padding:20px 16px}.mobile-menu-dialog nav a{font-size:14px}.hero-service-line{font-size:12px;gap:8px}.booking-bar strong{font-size:26px}.customer-reviews{padding:24px 16px}}
+
+.header-actions{display:flex;align-items:center;gap:10px}
+.line-button{display:inline-flex;align-items:center;justify-content:center;background:#06C755;color:#fff;font-weight:700;border-radius:8px;line-height:1}
+.line-button:hover{background:#05a84a;color:#fff}
+.header-line{min-height:44px;padding:10px 14px;font-size:14px;white-space:nowrap}
+.refined-footer .footer-contacts{display:flex;flex-wrap:wrap;align-items:center;gap:10px 16px}
+.footer-line{min-height:40px;padding:8px 14px;font-size:14px}
+.mobile-menu-line{display:flex;width:100%;min-height:52px;margin-bottom:10px;font-size:15px}
+.line-float{display:none}
+@media(max-width:900px){.header-actions{margin-left:auto;gap:8px}.header-actions .header-book{margin-left:0}}
+@media(max-width:760px){
+ .header-line{display:none}
+ .refined-footer .footer-contacts{align-self:end;flex-direction:column;align-items:flex-start}
+ .line-float{display:flex;position:fixed;z-index:56;right:14px;bottom:calc(84px + env(safe-area-inset-bottom));width:64px;height:64px;border-radius:999px;padding:0;font-size:13px;letter-spacing:.02em;box-shadow:0 10px 24px #0b8a3d40}
+ body:has(.booking-page) .line-float{bottom:calc(16px + env(safe-area-inset-bottom))}
+ body:has(dialog[open]) .line-float{display:none}
+}
+@media(max-width:380px){.refined-footer .footer-contacts{align-self:start}}
 @media(min-width:761px) and (max-width:1024px){input:not([type=checkbox]):not([type=radio]),select,textarea,[data-slot=select-trigger]{font-size:16px!important;min-height:48px}.booking-page{grid-template-columns:1fr;gap:26px}.booking-page>aside{position:static}.booking-page .booking-price{display:none}.booking-form .field-grid{grid-template-columns:1fr 1fr}}
