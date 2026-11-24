@@ -4,6 +4,7 @@ import {readCatalog} from '@/lib/catalog-server';
 import {seedProducts} from '@/lib/catalog';
 import {database} from '@/lib/server';
 import {PhotoProvider,type PhotoMap} from '@/components/managed-image';
+import {MetaPixel} from '@/components/meta-pixel';
 import {TagManager} from '@/components/tag-manager';
 import {brandName, companyName, defaultOgAlt, defaultOgHeight, defaultOgImage, defaultOgWidth, siteUrl} from '@/lib/site';
 import type { Metadata, Viewport } from "next";
@@ -55,7 +56,7 @@ export default async function RootLayout({
   try{const {results}=await database().prepare('SELECT source,asset_id,alt FROM site_photos WHERE asset_id IS NOT NULL').all<{source:string;asset_id:string;alt:string}>();for(const r of results)photos[r.source]={url:'/api/media/'+r.asset_id,alt:r.alt}}catch{console.error('Photo settings unavailable; using original images')}
   return (
     <html lang="zh-Hant">
-      <body className="antialiased"><TagManager /><AnalyticsEvents /><CatalogProvider products={products}><PhotoProvider photos={photos}>{children}</PhotoProvider></CatalogProvider></body>
+      <body className="antialiased"><TagManager /><MetaPixel /><AnalyticsEvents /><CatalogProvider products={products}><PhotoProvider photos={photos}>{children}</PhotoProvider></CatalogProvider></body>
     </html>
   );
 }
