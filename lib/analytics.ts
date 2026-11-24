@@ -1,4 +1,5 @@
 import {sendGTMEvent} from '@next/third-parties/google';
+import {trackMetaEvent} from '@/lib/meta-pixel';
 
 export type AnalyticsEvent = 'line_click' | 'phone_click' | 'generate_lead';
 type AnalyticsMode = 'gtm' | 'ga4';
@@ -25,19 +26,25 @@ export function track(event: AnalyticsEvent, params: Record<string, string | und
   for (const [key, value] of Object.entries(params)) {
     if (value) payload[key] = value;
   }
-  if (analyticsMode() === 'gtm') {
-    try {
-      sendGTMEvent({event, ...payload});
-    } catch {
-      const host = window as Window & {dataLayer?: unknown[]};
-      host.dataLayer = host.dataLayer || [];
-      host.dataLayer.push({event, ...payload});
-    }
-    return;
-  }
   try {
-    queueGtag(event, payload);
+    if (analyticsMode() === 'gtm') {
+      try {
+        sendGTMEvent({event, ...payload});
+      } catch {
+        const host = window as Window & {dataLayer?: unknown[]};
+        host.dataLayer = host.dataLayer || [];
+        host.dataLayer.push({event, ...payload});
+      }
+    } else {
+      queueGtag(event, payload);
+    }
   } catch {
     /* Analytics must not block the page when the tag is unavailable. */
+  }
+  // Pixel events fire in both modes. GTM must not also install a Meta Pixel tag.
+  try {
+    trackMetaEvent(event, payload);
+  } catch {
+    /* Meta Pixel must not block the page when the tag is blocked. */
   }
 }
