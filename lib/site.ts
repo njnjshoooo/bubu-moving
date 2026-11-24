@@ -1,0 +1,9 @@
+export const siteUrl = 'https://www.bubu-moving.com.tw';
+export const lineUrl = 'https://lin.ee/80f6gOf';
+export const lineBasicId = '@749lcbyu';
+export const brandName = '步步搬家';
+export const companyName = '步步搬家貨運股份有限公司';
+export const defaultOgImage = '/logo.png';
+export const defaultOgWidth = 576;
+export const defaultOgHeight = 212;
+export const defaultOgAlt = '步步搬家 BU BU MOVING';
